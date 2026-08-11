@@ -624,7 +624,8 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
           if (action === "uninstall") {
             // A missing result means refresh failed. A result with no version and no
             // broken-install marker confirms removal; anything still detected gets a
-            // soft warning and a fresh install diagnosis.
+            // soft warning. The user can click Uninstall again to probe and review the
+            // remaining install before another destructive action.
             if (!tool) {
               failures.push({
                 toolName,
@@ -638,7 +639,6 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
                 soft: true,
                 kind: "uninstallIncomplete",
               });
-              void diagnoseToolSilently(toolName);
             } else {
               succeeded += 1;
             }
