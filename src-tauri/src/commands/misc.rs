@@ -6762,15 +6762,37 @@ mod tests {
         }
 
         #[test]
-        fn codex_homebrew_formula_uses_brew_not_self_update() {
-            // Homebrew formula 归 brew 管理;即使 Codex 有 self-update,也不先改动
-            // Cellar 内的安装内容。
+        fn codex_homebrew_cask_uses_brew_not_self_update() {
+            // Homebrew-managed installs upgrade through brew; even though codex
+            // has a self-update, it must not touch the Caskroom contents. Codex
+            // is cask-only on Homebrew (`brew info --formula` finds no formula),
+            // so a Cellar/codex path can never belong to it -> fails closed (see
+            // codex_unknown_cellar_path_fails_closed).
             let cmd = anchored_command_from_paths(
                 "codex",
                 "/opt/homebrew/bin/codex",
-                "/opt/homebrew/Cellar/codex/1.2.3/bin/codex",
+                "/opt/homebrew/Caskroom/codex/1.2.3/codex-aarch64-apple-darwin",
             );
-            assert_eq!(cmd.as_deref(), Some("/opt/homebrew/bin/brew upgrade codex"));
+            assert_eq!(
+                cmd.as_deref(),
+                Some("/opt/homebrew/bin/brew upgrade --cask codex")
+            );
+        }
+
+        #[test]
+        fn codex_unknown_cellar_path_fails_closed() {
+            // codex has no Homebrew formula; a Cellar/codex/ path cannot belong to
+            // it (e.g. a mise shim resolving into an unrelated formula). The old
+            // any-Cellar check produced `brew upgrade codex` here — which would
+            // have failed at execution — so verify the fail-closed contract.
+            assert_eq!(
+                anchored_command_from_paths(
+                    "codex",
+                    "/opt/homebrew/bin/codex",
+                    "/opt/homebrew/Cellar/codex/1.2.3/bin/codex",
+                ),
+                None
+            );
         }
 
         #[test]
@@ -7151,9 +7173,14 @@ mod tests {
 
         #[test]
         fn codex_runnable_uses_plain_npm_not_self_heal() {
-            // 正常（runnable=true）的 codex 升级：锚定 npm，既不重装、也不跑会假成功
-            // 掩盖损坏的 `codex update`。
-            let healthy = inst("/Users/me/.nvm/versions/node/v22.14.0/bin/codex", true);
+            // A healthy (runnable=true) codex upgrade anchors to npm: no reinstall,
+            // and no `codex update` that could fake success over real damage.
+            // `real` points at the canonical target inside the package — the npm
+            // arm's ownership proof requires the `lib/node_modules/<pkg>` segment.
+            let mut healthy = inst("/Users/me/.nvm/versions/node/v22.14.0/bin/codex", true);
+            healthy.real = std::path::PathBuf::from(
+                "/Users/me/.nvm/versions/node/v22.14.0/lib/node_modules/@openai/codex/bin/codex.js",
+            );
             let cmd = installs_anchored_command("codex", &[healthy]);
             assert_eq!(
                 cmd.as_deref(),
@@ -7163,10 +7190,11 @@ mod tests {
         }
 
         #[test]
-        fn codex_broken_homebrew_formula_uses_brew_not_npm_repair() {
-            // brew formula 装的坏 codex（real 在 Cellar）：自愈门控必须收窄放行，回落到
-            // `brew upgrade codex`——若误走 npm 重装，npm 够不到 Cellar 那份、反而旁路
-            // 装第二份 npm 全局 codex 制造双安装。
+        fn codex_broken_homebrew_cask_uses_brew_not_npm_repair() {
+            // A broken brew-cask codex (real under Caskroom): the self-heal gate
+            // must stay narrow and fall back to `brew upgrade --cask codex` —
+            // an npm reinstall can't reach the Caskroom copy and would install a
+            // second npm-global codex as a side effect.
             let broken = ToolInstallation {
                 path: "/opt/homebrew/bin/codex".to_string(),
                 version: None,
@@ -7174,11 +7202,13 @@ mod tests {
                 error: None,
                 source: "homebrew".to_string(),
                 is_path_default: true,
-                real: std::path::PathBuf::from("/opt/homebrew/Cellar/codex/1.2.3/bin/codex"),
+                real: std::path::PathBuf::from(
+                    "/opt/homebrew/Caskroom/codex/1.2.3/codex-aarch64-apple-darwin",
+                ),
             };
             assert_eq!(
                 installs_anchored_command("codex", &[broken]).as_deref(),
-                Some("/opt/homebrew/bin/brew upgrade codex")
+                Some("/opt/homebrew/bin/brew upgrade --cask codex")
             );
         }
 
@@ -7620,13 +7650,28 @@ mod tests {
 
         #[test]
         fn uninstall_plan_supports_npm_anchor() {
-            let installs = vec![inst(
+            let mut installs = vec![inst(
                 "/Users/me/.nvm/versions/node/v22.14.0/bin/gemini",
                 true,
             )];
+            // Enumerate canonicalizes the bin shim to the package inside the npm
+            // prefix; the uninstall npm arm requires that `lib/node_modules/<pkg>`
+            // segment as ownership proof before it will anchor.
+            installs[0].real = std::path::PathBuf::from(
+                "/Users/me/.nvm/versions/node/v22.14.0/lib/node_modules/@google/gemini-cli/dist/index.js",
+            );
             let (cmd, supported) = uninstall_plan("gemini", &installs);
             assert!(supported);
             assert!(cmd.contains("npm uninstall -g @google/gemini-cli"), "{cmd}");
+        }
+
+        #[test]
+        fn uninstall_plan_without_npm_ownership_segment_is_not_supported() {
+            // Same sole-install shape but the canonical target carries no
+            // `lib/node_modules/<pkg>` segment (e.g. a mise standalone), so
+            // ownership cannot be proven and the plan fails closed.
+            let installs = vec![inst("/Users/me/.local/share/mise/shims/gemini", true)];
+            assert_eq!(uninstall_plan("gemini", &installs), (String::new(), false));
         }
 
         #[test]
