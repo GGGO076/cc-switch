@@ -129,8 +129,10 @@ pub(super) fn update(
     ProviderService::validate_provider_settings(&app_type, &provider)?;
     ProviderService::normalize_usage_script_credential_overrides(&app_type, &mut provider);
 
-    let previous_native =
-        crate::omp_config::replace_omp_provider_if_present(&original_id, &provider.settings_config)?;
+    let previous_native = crate::omp_config::replace_omp_provider_if_present(
+        &original_id,
+        &provider.settings_config,
+    )?;
     if let Err(error) = state.db.save_provider(app_type.as_str(), &provider) {
         if let Some(previous_native) = previous_native.as_ref() {
             if let Err(rollback) = crate::omp_config::replace_omp_provider(
@@ -225,10 +227,9 @@ pub(super) fn enable(state: &AppState, id: &str) -> Result<SwitchResult, AppErro
         .map(str::to_string);
     if let Some(first_model) = first_model {
         if let Err(error) = crate::omp_config::write_omp_default_role(id, &first_model) {
-            if let Err(rollback) = crate::omp_config::remove_omp_provider_if_matches(
-                id,
-                &provider.settings_config,
-            ) {
+            if let Err(rollback) =
+                crate::omp_config::remove_omp_provider_if_matches(id, &provider.settings_config)
+            {
                 return Err(AppError::Config(format!(
                     "failed to enable OMP provider: {error}; native rollback failed: {rollback}"
                 )));
@@ -440,7 +441,8 @@ mod tests {
             .expect("global default must not block removal");
         assert!(!crate::omp_config::omp_provider_exists("cc-switch-test").unwrap());
 
-        ProviderService::switch(&state, AppType::Omp, "cc-switch-test").expect("re-enable provider");
+        ProviderService::switch(&state, AppType::Omp, "cc-switch-test")
+            .expect("re-enable provider");
         assert_eq!(
             crate::omp_config::read_omp_default_role().expect("read default role"),
             Some("cc-switch-test/model-b".to_string()),
@@ -469,8 +471,7 @@ mod tests {
         let agent_dir = crate::omp_config::get_omp_agent_dir().expect("agent directory");
         fs::create_dir_all(&agent_dir).expect("create agent directory");
         let config_path = agent_dir.join("config.yml");
-        let config_contents =
-            "theme: dark\nmodelRoles:\n  default: anthropic/claude-opus-4-6\n";
+        let config_contents = "theme: dark\nmodelRoles:\n  default: anthropic/claude-opus-4-6\n";
         fs::write(&config_path, config_contents).expect("write config");
         let models_path = agent_dir.join("models.json");
         fs::write(
@@ -534,8 +535,12 @@ mod tests {
         let mut external = saved.settings_config.clone();
         external["name"] = json!("External edit");
         external["models"][0]["contextWindow"] = json!(1_000_000.0);
-        crate::omp_config::replace_omp_provider("cc-switch-test", &saved.settings_config, &external)
-            .expect("edit native provider");
+        crate::omp_config::replace_omp_provider(
+            "cc-switch-test",
+            &saved.settings_config,
+            &external,
+        )
+        .expect("edit native provider");
 
         let listed = ProviderService::list(&state, AppType::Omp).expect("sync native providers");
         assert_eq!(listed["cc-switch-test"].name, "External edit");
@@ -611,7 +616,8 @@ mod tests {
         let state = state();
         let mut stale_oauth = input("stale-model");
         stale_oauth.id = "native-oauth".to_string();
-        ProviderService::add(&state, AppType::Omp, stale_oauth, false).expect("save stale provider");
+        ProviderService::add(&state, AppType::Omp, stale_oauth, false)
+            .expect("save stale provider");
         let path = crate::omp_config::get_omp_models_path().unwrap();
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(
@@ -805,8 +811,10 @@ mod tests {
             .get_provider_by_id("cc-switch-test-copy", OMP_APP)
             .expect("read saved provider")
             .is_none());
-        assert!(crate::omp_config::omp_provider_exists("cc-switch-test-copy")
-            .expect("read native provider"));
+        assert!(
+            crate::omp_config::omp_provider_exists("cc-switch-test-copy")
+                .expect("read native provider")
+        );
 
         let providers = ProviderService::list(&state, AppType::Omp).expect("sync native provider");
         assert_eq!(providers["cc-switch-test-copy"].name, "Native OAuth");
@@ -903,12 +911,14 @@ mod tests {
             !crate::omp_config::omp_provider_exists("cc-switch-test").unwrap(),
             "a failed role write rolls back the native insert"
         );
-        assert!(state
-            .db
-            .get_provider_by_id("cc-switch-test", "omp")
-            .unwrap()
-            .is_some(),
-            "the saved catalog entry survives the rollback");
+        assert!(
+            state
+                .db
+                .get_provider_by_id("cc-switch-test", "omp")
+                .unwrap()
+                .is_some(),
+            "the saved catalog entry survives the rollback"
+        );
         ProviderService::delete(&state, AppType::Omp, "cc-switch-test")
             .expect("global selection is advisory for deletion");
     }

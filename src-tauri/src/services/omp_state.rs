@@ -23,7 +23,9 @@ impl OmpStateService {
         let native = read_omp_native_providers()?;
         let enabled_provider_ids = native.keys().cloned().collect::<Vec<_>>();
         let (default_provider_id, default_model) = match read_omp_default_role() {
-            Ok(role) => role.map(|role| split_default_role(&role)).unwrap_or((None, None)),
+            Ok(role) => role
+                .map(|role| split_default_role(&role))
+                .unwrap_or((None, None)),
             Err(error) => {
                 log::warn!("Failed to read OMP global default role for advisory UI: {error}");
                 (None, None)
@@ -160,10 +162,7 @@ mod tests {
         assert_eq!(split_default_role("/model"), (None, None));
         assert_eq!(
             split_default_role("prov/model:xhigh"),
-            (
-                Some("prov".to_string()),
-                Some("model:xhigh".to_string())
-            )
+            (Some("prov".to_string()), Some("model:xhigh".to_string()))
         );
     }
 }

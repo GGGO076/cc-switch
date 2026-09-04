@@ -147,7 +147,8 @@ pub async fn get_config_status(
             })
         }
         AppType::Omp => {
-            let config_path = crate::omp_config::get_omp_models_path().map_err(|e| e.to_string())?;
+            let config_path =
+                crate::omp_config::get_omp_models_path().map_err(|e| e.to_string())?;
             let path = crate::omp_config::get_omp_agent_dir()
                 .map_err(|e| e.to_string())?
                 .to_string_lossy()
@@ -158,7 +159,8 @@ pub async fn get_config_status(
             })
         }
         AppType::Prime => {
-            let config_path = crate::prime_config::get_prime_models_path().map_err(|e| e.to_string())?;
+            let config_path =
+                crate::prime_config::get_prime_models_path().map_err(|e| e.to_string())?;
             let path = crate::prime_config::get_prime_agent_dir()
                 .map_err(|e| e.to_string())?
                 .to_string_lossy()

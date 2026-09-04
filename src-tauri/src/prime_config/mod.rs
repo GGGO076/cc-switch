@@ -38,7 +38,11 @@ pub(crate) fn get_prime_agent_dir() -> Result<PathBuf, AppError> {
         .expect("lock Prime test directory")
         .clone()
     {
-        return resolve_prime_agent_dir(Some(path), None, get_home_dir().join(".prime").join("agent"));
+        return resolve_prime_agent_dir(
+            Some(path),
+            None,
+            get_home_dir().join(".prime").join("agent"),
+        );
     }
 
     resolve_prime_agent_dir(
@@ -485,10 +489,6 @@ pub(crate) mod test_support {
             let dir = tempfile::tempdir().expect("create Prime test directory");
             let agent_dir = dir.path().join("agent");
             Self::set(agent_dir, Some(dir))
-        }
-
-        pub(crate) fn at(agent_dir: &Path) -> Self {
-            Self::set(agent_dir.to_path_buf(), None)
         }
 
         fn set(agent_dir: PathBuf, dir: Option<tempfile::TempDir>) -> Self {

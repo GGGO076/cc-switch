@@ -246,7 +246,10 @@ impl PromptService {
         // rows are intentionally disabled and must not drive generic projection.
         // OMP prompts are out of scope: same skip.
         // Prime prompts are out of scope: same skip.
-        if matches!(app, AppType::ClaudeDesktop | AppType::Pi | AppType::Omp | AppType::Prime) {
+        if matches!(
+            app,
+            AppType::ClaudeDesktop | AppType::Pi | AppType::Omp | AppType::Prime
+        ) {
             return Ok(());
         }
 

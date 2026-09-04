@@ -5,7 +5,9 @@ use crate::store::AppState;
 use tauri::State;
 
 #[tauri::command]
-pub(crate) fn get_prime_current_state(state: State<'_, AppState>) -> Result<PrimeCurrentState, String> {
+pub(crate) fn get_prime_current_state(
+    state: State<'_, AppState>,
+) -> Result<PrimeCurrentState, String> {
     PrimeStateService::current(state.inner()).map_err(|error| error.to_string())
 }
 

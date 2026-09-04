@@ -18,7 +18,8 @@ pub(crate) struct PrimeStateService;
 
 impl PrimeStateService {
     pub(crate) fn current(state: &AppState) -> Result<PrimeCurrentState, AppError> {
-        let _guard = futures::executor::block_on(state.proxy_service.lock_switch_for_app(PRIME_APP));
+        let _guard =
+            futures::executor::block_on(state.proxy_service.lock_switch_for_app(PRIME_APP));
         let native = read_prime_native_providers()?;
         let enabled_provider_ids = native.keys().cloned().collect::<Vec<_>>();
         let default_provider_id = match read_prime_native_defaults() {

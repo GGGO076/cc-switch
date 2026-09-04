@@ -49,7 +49,7 @@ pub(crate) fn get_omp_agent_dir() -> Result<PathBuf, AppError> {
 
     let profile = std::env::var("OMP_PROFILE").ok().filter(|value| {
         let trimmed = value.trim();
-        !trimmed.is_empty() && *trimmed != "default"
+        !trimmed.is_empty() && trimmed != "default"
     });
     resolve_omp_agent_dir(
         crate::settings::get_omp_override_dir(),
@@ -171,10 +171,7 @@ pub(crate) fn read_omp_default_role() -> Result<Option<String>, AppError> {
 /// Any `:thinking`-style tail on the previous default is carried over, all
 /// other `config.yml` keys are preserved, and the file is written back with
 /// 0600 permissions via the shared atomic writer.
-pub(crate) fn write_omp_default_role(
-    provider_id: &str,
-    model_id: &str,
-) -> Result<(), AppError> {
+pub(crate) fn write_omp_default_role(provider_id: &str, model_id: &str) -> Result<(), AppError> {
     let path = get_omp_config_path()?;
     let previous = read_omp_default_role()?;
     let suffix = previous
@@ -229,13 +226,12 @@ fn read_config_mapping(path: &Path) -> Result<serde_yaml::Mapping, AppError> {
     if source.trim().is_empty() {
         return Ok(serde_yaml::Mapping::new());
     }
-    let document: serde_yaml::Value =
-        serde_yaml::from_str(&source).map_err(|error| {
-            AppError::Config(format!(
-                "OMP config file is not valid YAML ({}): {error}",
-                path.display()
-            ))
-        })?;
+    let document: serde_yaml::Value = serde_yaml::from_str(&source).map_err(|error| {
+        AppError::Config(format!(
+            "OMP config file is not valid YAML ({}): {error}",
+            path.display()
+        ))
+    })?;
     if document.is_null() {
         return Ok(serde_yaml::Mapping::new());
     }
@@ -655,10 +651,6 @@ pub(crate) mod test_support {
             Self::set(agent_dir, Some(dir))
         }
 
-        pub(crate) fn at(agent_dir: &Path) -> Self {
-            Self::set(agent_dir.to_path_buf(), None)
-        }
-
         fn set(agent_dir: PathBuf, dir: Option<tempfile::TempDir>) -> Self {
             let previous = super::TEST_AGENT_DIR
                 .lock()
@@ -756,7 +748,7 @@ mod tests {
             resolve_omp_agent_dir(
                 None,
                 Some("cctest".to_string()),
-                Some(env_dir.into_os_string()),
+                Some(env_dir.clone().into_os_string()),
                 default_agent.clone(),
             )
             .expect("resolve OMP directory"),

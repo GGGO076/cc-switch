@@ -2474,7 +2474,10 @@ impl SkillService {
         // OMP skill sync is out of scope (like Pi's dedicated-pass skip):
         // never write into OMP's agent directory from the skills subsystem.
         // Prime skill sync is out of scope: same skip.
-        if matches!(app, AppType::ClaudeDesktop | AppType::Pi | AppType::Omp | AppType::Prime) {
+        if matches!(
+            app,
+            AppType::ClaudeDesktop | AppType::Pi | AppType::Omp | AppType::Prime
+        ) {
             return Ok(());
         }
         let skills = db.get_all_installed_skills()?;

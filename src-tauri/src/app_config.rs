@@ -32,8 +32,8 @@ impl McpApps {
             AppType::OpenCode => self.opencode,
             AppType::OpenClaw => false, // OpenClaw doesn't support MCP
             AppType::Hermes => self.hermes,
-            AppType::Pi => false, // Pi core has no native MCP registry.
-            AppType::Omp => false, // OMP has no native MCP registry either.
+            AppType::Pi => false,    // Pi core has no native MCP registry.
+            AppType::Omp => false,   // OMP has no native MCP registry either.
             AppType::Prime => false, // Prime has no native MCP registry either.
             AppType::ClaudeDesktop => false,
         }
@@ -121,8 +121,8 @@ impl SkillApps {
             AppType::OpenCode => self.opencode,
             AppType::Hermes => self.hermes,
             AppType::Pi => self.pi,
-            AppType::Omp => false, // OMP skill sync is out of scope.
-            AppType::Prime => false, // Prime skill sync is out of scope.
+            AppType::Omp => false,      // OMP skill sync is out of scope.
+            AppType::Prime => false,    // Prime skill sync is out of scope.
             AppType::OpenClaw => false, // OpenClaw doesn't support Skills
             AppType::ClaudeDesktop => false,
         }
@@ -138,9 +138,9 @@ impl SkillApps {
             AppType::OpenCode => self.opencode = enabled,
             AppType::Hermes => self.hermes = enabled,
             AppType::Pi => self.pi = enabled,
-            AppType::Omp => {} // OMP skill sync is out of scope, ignore.
-            AppType::Prime => {} // Prime skill sync is out of scope, ignore.
-            AppType::OpenClaw => {} // OpenClaw doesn't support Skills, ignore
+            AppType::Omp => {}           // OMP skill sync is out of scope, ignore.
+            AppType::Prime => {}         // Prime skill sync is out of scope, ignore.
+            AppType::OpenClaw => {}      // OpenClaw doesn't support Skills, ignore
             AppType::ClaudeDesktop => {} // Claude Desktop 3P profiles don't use CC Switch skill sync
         }
     }
@@ -426,7 +426,12 @@ impl AppType {
     pub fn is_additive_mode(&self) -> bool {
         matches!(
             self,
-            AppType::OpenCode | AppType::OpenClaw | AppType::Hermes | AppType::Pi | AppType::Omp | AppType::Prime
+            AppType::OpenCode
+                | AppType::OpenClaw
+                | AppType::Hermes
+                | AppType::Pi
+                | AppType::Omp
+                | AppType::Prime
         )
     }
 

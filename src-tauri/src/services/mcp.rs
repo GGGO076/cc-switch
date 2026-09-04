@@ -233,7 +233,11 @@ impl McpService {
     ) -> Result<(), AppError> {
         if matches!(
             app,
-            AppType::OpenClaw | AppType::ClaudeDesktop | AppType::Pi | AppType::Omp | AppType::Prime
+            AppType::OpenClaw
+                | AppType::ClaudeDesktop
+                | AppType::Pi
+                | AppType::Omp
+                | AppType::Prime
         ) {
             return Ok(());
         }

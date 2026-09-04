@@ -6538,7 +6538,10 @@ impl ProviderService {
                 crate::omp_config::validate_provider_node(&provider.id, &provider.settings_config)?;
             }
             AppType::Prime => {
-                crate::prime_config::validate_provider_node(&provider.id, &provider.settings_config)?;
+                crate::prime_config::validate_provider_node(
+                    &provider.id,
+                    &provider.settings_config,
+                )?;
             }
         }
 
