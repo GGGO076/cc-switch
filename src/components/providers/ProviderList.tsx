@@ -48,6 +48,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { isTextEditableTarget } from "@/utils/domUtils";
 import { usePiCurrentState } from "@/lib/query/pi";
+import { useOmpCurrentState } from "@/lib/query/omp";
 import { isProxyAppId } from "@/config/appConfig";
 
 interface ProviderListProps {
@@ -220,6 +221,21 @@ export function ProviderList({
       return piCurrentState?.enabledProviderIds.includes(provider.id) ?? false;
     },
     [isPiAuthoritativeStateReady, piCurrentState],
+  );
+  const {
+    data: ompCurrentState,
+    isSuccess: isOmpCurrentStateSuccess,
+    isError: isOmpCurrentStateError,
+    error: ompCurrentStateError,
+  } = useOmpCurrentState(appId === "omp");
+  const isOmpAuthoritativeStateReady =
+    appId !== "omp" || isOmpCurrentStateSuccess;
+  const isOmpProviderInConfig = useCallback(
+    (provider: Provider): boolean => {
+      if (!isOmpAuthoritativeStateReady) return false;
+      return ompCurrentState?.enabledProviderIds.includes(provider.id) ?? false;
+    },
+    [isOmpAuthoritativeStateReady, ompCurrentState],
   );
 
   // 连通性检查不发真实请求、无封号/计费风险，直接执行（无需确认弹窗）。
@@ -397,6 +413,29 @@ export function ProviderList({
         </p>
       </div>
     ) : null;
+  const ompStateErrorMessages = [
+    isOmpCurrentStateError ? extractErrorMessage(ompCurrentStateError) : "",
+  ].filter(Boolean);
+  const ompStateErrorNotice =
+    appId === "omp" && ompStateErrorMessages.length > 0 ? (
+      <div
+        role="alert"
+        className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200"
+      >
+        <div className="flex items-center gap-2 font-medium">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {t("omp.current.readFailed", {
+            defaultValue: "无法读取 OMP 当前配置",
+          })}
+        </div>
+        <p className="mt-1 text-xs leading-relaxed">
+          {t("omp.current.stateUnavailableHint")}
+          {ompStateErrorMessages.length > 0
+            ? ` ${ompStateErrorMessages.join(" · ")}`
+            : ""}
+        </p>
+      </div>
+    ) : null;
 
   if (isLoading) {
     return (
@@ -415,10 +454,15 @@ export function ProviderList({
     return (
       <div className="mt-4 space-y-4">
         {piStateErrorNotice}
+        {ompStateErrorNotice}
         <ProviderEmptyState
           appId={appId}
-          onCreate={appId === "pi" ? undefined : onCreate}
-          onImport={appId === "pi" ? undefined : () => importMutation.mutate()}
+          onCreate={appId === "pi" || appId === "omp" ? undefined : onCreate}
+          onImport={
+            appId === "pi" || appId === "omp"
+              ? undefined
+              : () => importMutation.mutate()
+          }
         />
       </div>
     );
@@ -444,7 +488,7 @@ export function ProviderList({
             const isHermesCurrent =
               appId === "hermes" && hermesCurrentProviderId === provider.id;
             const isCurrent =
-              appId === "pi"
+              appId === "pi" || appId === "omp"
                 ? false
                 : isOmo
                   ? isOmoCurrent
@@ -462,7 +506,9 @@ export function ProviderList({
                 isInConfig={
                   appId === "pi"
                     ? isPiProviderInConfig(provider)
-                    : isProviderInConfig(provider.id)
+                    : appId === "omp"
+                      ? isOmpProviderInConfig(provider)
+                      : isProviderInConfig(provider.id)
                 }
                 isOmo={isOmo}
                 isOmoSlim={isOmoSlim}
@@ -497,7 +543,7 @@ export function ProviderList({
                     : isProviderDefaultModel(provider.id)
                 }
                 isRemovalProtected={
-                  appId === "pi"
+                  appId === "pi" || appId === "omp"
                     ? false
                     : appId === "hermes"
                       ? isHermesCurrent
@@ -506,7 +552,11 @@ export function ProviderList({
                         : false
                 }
                 isStateChangeProtected={
-                  appId === "pi" && !isPiAuthoritativeStateReady
+                  appId === "pi"
+                    ? !isPiAuthoritativeStateReady
+                    : appId === "omp"
+                      ? !isOmpAuthoritativeStateReady
+                      : false
                 }
                 onSetAsDefault={
                   onSetAsDefault
@@ -524,6 +574,7 @@ export function ProviderList({
   return (
     <div className="mt-4 space-y-4">
       {piStateErrorNotice}
+      {ompStateErrorNotice}
       {claudeDesktopStatusMessages.length > 0 && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
           <div className="flex items-center gap-2 font-medium">

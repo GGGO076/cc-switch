@@ -25,6 +25,7 @@ mod model_capabilities;
 mod openclaw_config;
 mod opencode_config;
 mod panic_hook;
+mod omp_config;
 mod pi_config;
 mod prompt;
 mod prompt_files;
@@ -871,6 +872,13 @@ pub fn run() {
                 Ok(_) => log::debug!("○ No Pi provider changes from native config"),
                 Err(e) => log::warn!("✗ Failed to import Pi providers: {e}"),
             }
+            match crate::services::provider::import_omp_providers_from_live(&app_state) {
+                Ok(count) if count > 0 => {
+                    log::info!("✓ Synced {count} OMP provider(s) from native config");
+                }
+                Ok(_) => log::debug!("○ No OMP provider changes from native config"),
+                Err(e) => log::warn!("✗ Failed to import OMP providers: {e}"),
+            }
 
             // 2. OMO 配置导入（当数据库中无 OMO provider 时，从本地文件导入）
             {
@@ -1471,6 +1479,9 @@ pub fn run() {
             commands::get_pi_current_state,
             commands::update_pi_provider_usage_script,
             commands::get_pi_session_discovery,
+            // OMP native provider views (sessions/prompts out of scope)
+            commands::get_omp_current_state,
+            commands::update_omp_provider_usage_script,
             // Profile management (项目配置方案)
             commands::list_profiles,
             commands::create_profile,

@@ -336,7 +336,8 @@
       "title": "共通設定について",
       "message": "「共通設定スニペット」を使うと、プラグインや環境変数などの設定を異なるプロバイダー間で共有でき、切り替え時に失われることがありません。\n\n使い方：\n① プロバイダーを編集 →「共通設定を編集」→「編集内容から抽出」\n② 新規プロバイダー作成時に「共通設定を適用」をチェック（デフォルトでオン）\n\n新しいプラグインや Hook をインストールした場合は、共通設定を再抽出してください。",
       "confirm": "わかりました"
-    }
+    },
+    "ompDefaultProviderWarning": "OMP のグローバルデフォルトは現在このプロバイダーを参照しています。続行すると、OMP は別の利用可能なモデルを試します。/model で再選択するか、/login で別のプロバイダーにログインできます。"
   },
   "settings": {
     "title": "設定",
@@ -899,7 +900,10 @@
       "defaultCostMultiplierRequired": "デフォルト倍率は必須です",
       "defaultCostMultiplierInvalid": "デフォルト倍率の形式が正しくありません"
     },
-    "saveFailedGeneric": "保存に失敗しました。もう一度お試しください"
+    "saveFailedGeneric": "保存に失敗しました。もう一度お試しください",
+    "ompConfigDir": "OMP 設定ディレクトリ",
+    "ompConfigDirDescription": "OMP の設定ディレクトリ（models.json と config.yml）を上書きします。",
+    "browsePlaceholderOmp": "例: /home/<your-username>/.omp/agent"
   },
   "apps": {
     "claude": "Claude",
@@ -912,7 +916,8 @@
     "opencode": "OpenCode",
     "openclaw": "OpenClaw",
     "hermes": "Hermes",
-    "pi": "Pi"
+    "pi": "Pi",
+    "omp": "OMP"
   },
   "pi": {
     "empty": {
@@ -1052,6 +1057,25 @@
       "noTemplateResults": "一致するテンプレートがありません",
       "deleteTemplateTitle": "/{{slug}} を削除しますか？",
       "deleteTemplateMessage": "prompts/{{slug}}.md を完全に削除します。"
+    }
+  },
+  "omp": {
+    "empty": {
+      "title": "API キープロバイダーはまだありません",
+      "description": "右上の + から、プリセットまたはカスタムプロバイダーを追加できます。"
+    },
+    "provider": {
+      "enabled": "OMP で有効にしました",
+      "enableFailed": "OMP でこのプロバイダーを有効にできませんでした",
+      "removed": "OMP から削除しました",
+      "writeConflict": "別のプロセスが OMP の設定を更新しています。しばらくしてから再試行してください。"
+    },
+    "form": {
+      "providerKeyDuplicate": "このプロバイダーキーは既に存在します"
+    },
+    "current": {
+      "readFailed": "OMP のプロバイダー設定を読み込めません",
+      "stateUnavailableHint": "CC Switch が OMP のプロバイダー設定を読み込むまで、プロバイダーの変更は無効です。"
     }
   },
   "appSwitcher": {

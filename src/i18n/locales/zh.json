@@ -336,7 +336,8 @@
       "title": "关于通用配置",
       "message": "「通用配置片段」可以在不同供应商之间共享插件、环境变量等配置，避免切换供应商时丢失这些设置。\n\n使用方法：\n① 编辑供应商时点击「编辑通用配置」→「从编辑内容提取」\n② 新建供应商时勾选「应用通用配置」（默认已勾选）\n\n如果您新安装了插件或 Hook，请重新提取一次通用配置。",
       "confirm": "我知道了"
-    }
+    },
+    "ompDefaultProviderWarning": "OMP 的全局默认项当前指向此供应商。继续后，OMP 会尝试其他可用模型；你可以在 OMP 中使用 /model 重新选择，或使用 /login 登录其他供应商。"
   },
   "settings": {
     "title": "设置",
@@ -899,7 +900,10 @@
       "defaultCostMultiplierRequired": "默认倍率不能为空",
       "defaultCostMultiplierInvalid": "默认倍率格式不正确"
     },
-    "saveFailedGeneric": "保存失败，请重试"
+    "saveFailedGeneric": "保存失败，请重试",
+    "ompConfigDir": "OMP 配置目录",
+    "ompConfigDirDescription": "覆盖 OMP 配置目录（models.json 与 config.yml）。",
+    "browsePlaceholderOmp": "例如：/home/<你的用户名>/.omp/agent"
   },
   "apps": {
     "claude": "Claude",
@@ -912,7 +916,8 @@
     "opencode": "OpenCode",
     "openclaw": "OpenClaw",
     "hermes": "Hermes",
-    "pi": "Pi"
+    "pi": "Pi",
+    "omp": "OMP"
   },
   "pi": {
     "empty": {
@@ -1052,6 +1057,25 @@
       "noTemplateResults": "没有匹配的模板",
       "deleteTemplateTitle": "删除 /{{slug}}？",
       "deleteTemplateMessage": "此操作会永久删除 prompts/{{slug}}.md。"
+    }
+  },
+  "omp": {
+    "empty": {
+      "title": "还没有添加 API Key 供应商",
+      "description": "点击右上角 +，从预设或自定义配置添加供应商。"
+    },
+    "provider": {
+      "enabled": "已在 OMP 中启用",
+      "enableFailed": "无法在 OMP 中启用此供应商",
+      "removed": "已从 OMP 移除",
+      "writeConflict": "OMP 配置正在被其他进程修改，请稍后再试。"
+    },
+    "form": {
+      "providerKeyDuplicate": "该供应商标识已存在"
+    },
+    "current": {
+      "readFailed": "无法读取 OMP 供应商配置",
+      "stateUnavailableHint": "CC Switch 读取到 OMP 供应商配置前，供应商变更已暂时禁用。"
     }
   },
   "appSwitcher": {

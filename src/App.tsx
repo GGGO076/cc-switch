@@ -33,6 +33,7 @@ import type { Provider, VisibleApps } from "@/types";
 import type { EnvConflict } from "@/types/env";
 import { proxyKeys, useProvidersQuery, useSettingsQuery } from "@/lib/query";
 import {
+  ompApi,
   piApi,
   providersApi,
   settingsApi,
@@ -51,6 +52,7 @@ import { useLastValidValue } from "@/hooks/useLastValidValue";
 import { useScanUnmanagedSkills } from "@/hooks/useSkills";
 import {
   extractErrorMessage,
+  translateOmpProviderMutationError,
   translatePiProviderMutationError,
 } from "@/utils/errorUtils";
 import { isTextEditableTarget } from "@/utils/domUtils";
@@ -100,6 +102,7 @@ import {
   useDisableCurrentOmo,
   useDisableCurrentOmoSlim,
 } from "@/lib/query/omo";
+import { invalidateOmpProviderCaches, useOmpCurrentState } from "@/lib/query/omp";
 import { invalidatePiProviderCaches, usePiCurrentState } from "@/lib/query/pi";
 import WorkspaceFilesPanel from "@/components/workspace/WorkspaceFilesPanel";
 import EnvPanel from "@/components/openclaw/EnvPanel";
@@ -223,10 +226,13 @@ function App() {
       setActiveApp(getFirstVisibleApp());
     }
   }, [visibleApps, activeApp]);
-
   // Fallback from sessions view when switching to an app without session support
   useEffect(() => {
     if (currentView === "mcp" && sharedFeatureApp === "pi") {
+      setCurrentView("providers");
+      return;
+    }
+    if (currentView === "mcp" && sharedFeatureApp === "omp") {
       setCurrentView("providers");
       return;
     }
@@ -295,6 +301,7 @@ function App() {
     isProxyRunning: currentAppUsesProxy && isProxyRunning,
   });
   const { data: piCurrentState } = usePiCurrentState(activeApp === "pi");
+  const { data: ompCurrentState } = useOmpCurrentState(activeApp === "omp");
   const providers = useMemo(() => data?.providers ?? {}, [data]);
   const currentProviderId = data?.currentProviderId ?? "";
   const isOpenClawView =
@@ -317,7 +324,7 @@ function App() {
     sharedFeatureApp === "gemini" ||
     sharedFeatureApp === "hermes" ||
     sharedFeatureApp === "pi";
-  const hasMcpSupport = sharedFeatureApp !== "pi";
+  const hasMcpSupport = sharedFeatureApp !== "pi" && sharedFeatureApp !== "omp";
 
   const {
     addProvider,
@@ -356,6 +363,36 @@ function App() {
         {
           description:
             translatePiProviderMutationError(detail, t) || detail || undefined,
+          closeButton: true,
+        },
+      );
+    }
+  };
+  const handleEnableOmpProvider = async (provider: Provider) => {
+    try {
+      await providersApi.switch(provider.id, "omp");
+      await invalidateOmpProviderCaches(queryClient);
+      await providersApi.updateTrayMenu().catch((error) => {
+        console.error(
+          "Failed to update tray menu after enabling OMP provider",
+          error,
+        );
+      });
+      toast.success(
+        t("omp.provider.enabled", {
+          defaultValue: "已在 OMP 中启用",
+        }),
+        { closeButton: true },
+      );
+    } catch (error) {
+      const detail = extractErrorMessage(error);
+      toast.error(
+        t("omp.provider.enableFailed", {
+          defaultValue: "无法在 OMP 中启用此供应商",
+        }),
+        {
+          description:
+            translateOmpProviderMutationError(detail, t) || detail || undefined,
           closeButton: true,
         },
       );
@@ -409,6 +446,9 @@ function App() {
             }
             if (event.appType === "pi") {
               await invalidatePiProviderCaches(queryClient);
+            }
+            if (event.appType === "omp") {
+              await invalidateOmpProviderCaches(queryClient);
             }
           },
         );
@@ -729,9 +769,14 @@ function App() {
         const description =
           activeApp === "pi"
             ? translatePiProviderMutationError(detail, t) || detail
-            : detail;
+            : activeApp === "omp"
+              ? translateOmpProviderMutationError(detail, t) || detail
+              : detail;
         if (activeApp === "pi") {
           void invalidatePiProviderCaches(queryClient).catch(() => undefined);
+        }
+        if (activeApp === "omp") {
+          void invalidateOmpProviderCaches(queryClient).catch(() => undefined);
         }
         toast.error(t("notifications.removeFromConfigFailed"), {
           description: description || t("common.unknown"),
@@ -741,6 +786,9 @@ function App() {
       }
       if (activeApp === "pi") {
         await invalidatePiProviderCaches(queryClient);
+      }
+      if (activeApp === "omp") {
+        await invalidateOmpProviderCaches(queryClient);
       }
       // Invalidate queries to refresh the isInConfig state
       if (activeApp === "opencode") {
@@ -764,9 +812,13 @@ function App() {
           ? t("pi.provider.removed", {
               defaultValue: "已从 Pi 移除",
             })
-          : t("notifications.removeFromConfigSuccess", {
-              defaultValue: "已从配置移除",
-            }),
+          : activeApp === "omp"
+            ? t("omp.provider.removed", {
+                defaultValue: "已从 OMP 移除",
+              })
+            : t("notifications.removeFromConfigSuccess", {
+                defaultValue: "已从配置移除",
+              }),
         { closeButton: true },
       );
     } else {
@@ -814,7 +866,8 @@ function App() {
       activeApp === "opencode" ||
       activeApp === "openclaw" ||
       activeApp === "hermes" ||
-      activeApp === "pi"
+      activeApp === "pi" ||
+      activeApp === "omp"
     ) {
       let liveProviderIds: string[] = [];
       try {
@@ -834,12 +887,19 @@ function App() {
                     queryKey: hermesKeys.liveProviderIds,
                     queryFn: () => providersApi.getHermesLiveProviderIds(),
                   })
-                : (
-                    await queryClient.ensureQueryData({
-                      queryKey: ["pi", "currentState"],
-                      queryFn: () => piApi.getCurrentState(),
-                    })
-                  ).enabledProviderIds;
+                : activeApp === "omp"
+                  ? (
+                      await queryClient.ensureQueryData({
+                        queryKey: ["omp", "currentState"],
+                        queryFn: () => ompApi.getCurrentState(),
+                      })
+                    ).enabledProviderIds
+                  : (
+                      await queryClient.ensureQueryData({
+                        queryKey: ["pi", "currentState"],
+                        queryFn: () => piApi.getCurrentState(),
+                      })
+                    ).enabledProviderIds;
       } catch (error) {
         console.error(
           "[App] Failed to load live provider IDs for duplication",
@@ -908,11 +968,24 @@ function App() {
     const isPiGlobalDefault =
       activeApp === "pi" &&
       piCurrentState?.defaultProviderId === confirmAction.provider.id;
+    const isOmpGlobalDefault =
+      activeApp === "omp" &&
+      ompCurrentState?.defaultProviderId === confirmAction.provider.id;
 
-    return isPiGlobalDefault
-      ? `${message}\n\n${t("confirm.piDefaultProviderWarning")}`
-      : message;
-  }, [activeApp, confirmAction, piCurrentState?.defaultProviderId, t]);
+    if (isPiGlobalDefault) {
+      return `${message}\n\n${t("confirm.piDefaultProviderWarning")}`;
+    }
+    if (isOmpGlobalDefault) {
+      return `${message}\n\n${t("confirm.ompDefaultProviderWarning")}`;
+    }
+    return message;
+  }, [
+    activeApp,
+    confirmAction,
+    piCurrentState?.defaultProviderId,
+    ompCurrentState?.defaultProviderId,
+    t,
+  ]);
 
   const handleOpenTerminal = async (provider: Provider) => {
     try {
@@ -1113,7 +1186,9 @@ function App() {
                       onSwitch={
                         activeApp === "pi"
                           ? handleEnablePiProvider
-                          : switchProvider
+                          : activeApp === "omp"
+                            ? handleEnableOmpProvider
+                            : switchProvider
                       }
                       onEdit={(provider) => {
                         setEditingProvider(provider);
@@ -1125,7 +1200,8 @@ function App() {
                         activeApp === "opencode" ||
                         activeApp === "openclaw" ||
                         activeApp === "hermes" ||
-                        activeApp === "pi"
+                        activeApp === "pi" ||
+                        activeApp === "omp"
                           ? (provider) =>
                               setConfirmAction({ provider, action: "remove" })
                           : undefined

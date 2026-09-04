@@ -16,6 +16,7 @@ export function ProviderEmptyState({
 }: ProviderEmptyStateProps) {
   const { t } = useTranslation();
   const isPi = appId === "pi";
+  const isOmp = appId === "omp";
   const showSnippetHint =
     appId === "claude" || appId === "codex" || appId === "gemini";
 
@@ -25,12 +26,18 @@ export function ProviderEmptyState({
         <Users className="h-7 w-7 text-muted-foreground" />
       </div>
       <h3 className="text-lg font-semibold">
-        {isPi ? t("pi.empty.title") : t("provider.noProviders")}
+        {isPi
+          ? t("pi.empty.title")
+          : isOmp
+            ? t("omp.empty.title")
+            : t("provider.noProviders")}
       </h3>
       <p className="mt-2 max-w-lg text-sm text-muted-foreground">
         {isPi
           ? t("pi.empty.description")
-          : t("provider.noProvidersDescription")}
+          : isOmp
+            ? t("omp.empty.description")
+            : t("provider.noProvidersDescription")}
       </p>
       {showSnippetHint && (
         <p className="mt-1 max-w-lg text-sm text-muted-foreground">

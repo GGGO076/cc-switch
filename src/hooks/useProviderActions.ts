@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
+  ompApi,
   piApi,
   providersApi,
   settingsApi,
@@ -391,6 +392,8 @@ export function useProviderActions(
 
         if (activeApp === "pi") {
           await piApi.updateProviderUsageScript(provider.id, script);
+        } else if (activeApp === "omp") {
+          await ompApi.updateProviderUsageScript(provider.id, script);
         } else {
           await providersApi.update(updatedProvider, activeApp);
         }
