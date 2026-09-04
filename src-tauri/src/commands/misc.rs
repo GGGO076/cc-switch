@@ -1104,6 +1104,7 @@ const NOT_INSTALLED: &str = "not installed or not executable";
 /// 关键区分"没装"与"装了但 `--version` 自身报错退出"（如工具要求更高的 Node 版本）：
 /// 后者必须如实上报、不去别处捞旧版掩盖，否则"升级到新版却跑不起来"会被旧版盖住，
 /// 表现为"升级成功但版本号不变"。
+#[derive(Debug)]
 enum ShellProbe {
     /// 成功拿到版本号
     Found(String),
