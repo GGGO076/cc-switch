@@ -1742,7 +1742,9 @@ pub fn run() {
                 // 重启路径交还 Tauri 默认流程即可：
                 //   - 窗口状态：插件 Exit 钩子在主线程保存（同线程读取窗口几何，无死锁）
                 //   - 托盘图标：Tauri 内部 cleanup_before_exit 清理，正常走 Drop
-                //   - 代理/Live 配置：无需恢复，重启后新实例立即接管并恢复代理状态
+                //   - 代理/Live 配置：无需在退出时恢复，重启后新实例的启动恢复
+                //     会处理——「自动恢复路由接管」开启时立即重新接管并恢复代理
+                //     状态；关闭时启动恢复会把 Live 恢复为原始配置并清除接管标志
                 //   - 100ms 落盘等待：重启前的 DB 写入均为命令驱动、此刻已完成，
                 //     与所有 Tauri 应用默认重启路径的行为一致，无需额外等待
                 ExitRequestAction::DeferToTauriRestart => {
@@ -1878,10 +1880,16 @@ pub fn run() {
 ///
 /// 在应用退出前检查代理服务器状态，如果正在运行则停止代理并恢复 Live 配置。
 /// 确保 Claude Code/Codex/Gemini 的配置不会处于损坏状态。
-/// 使用 stop_with_restore_keep_state 保留 settings 表中的代理状态，下次启动时自动恢复。
+///
+/// 按「开机自动恢复路由接管」（`proxy_restore_on_startup`）设置分两种行为：
+/// - 开启（默认关闭状态的反向）：使用 `stop_with_restore_keep_state` 保留
+///   proxy_config.enabled，下次启动自动恢复接管。
+/// - 关闭（默认）：使用 `stop_with_restore` 恢复 Live 配置并清除所有接管标志，
+///   下次启动不再自动重接管，客户端配置不会残留失效的路由地址。
 pub async fn cleanup_before_exit(app_handle: &tauri::AppHandle) {
     if let Some(state) = app_handle.try_state::<store::AppState>() {
         let proxy_service = &state.proxy_service;
+        let resume_on_startup = crate::settings::get_settings().proxy_restore_on_startup;
 
         // 退出时也需要兜底：代理可能已崩溃/未运行，但 Live 接管残留仍在（占位符/备份）。
         let has_backups = match state.db.has_any_live_backup().await {
@@ -1895,12 +1903,35 @@ pub async fn cleanup_before_exit(app_handle: &tauri::AppHandle) {
         let needs_restore = has_backups || live_taken_over;
 
         if needs_restore {
-            log::info!("检测到接管残留，开始恢复 Live 配置（保留代理状态）...");
-            // 使用 keep_state 版本，保留 settings 表中的代理状态
-            if let Err(e) = proxy_service.stop_with_restore_keep_state().await {
+            if resume_on_startup {
+                log::info!("检测到接管残留，开始恢复 Live 配置（保留代理状态）...");
+                // 使用 keep_state 版本，保留 settings 表中的代理状态
+                if let Err(e) = proxy_service.stop_with_restore_keep_state().await {
+                    log::error!("退出时恢复 Live 配置失败: {e}");
+                } else {
+                    log::info!("已恢复 Live 配置（代理状态已保留，下次启动将自动恢复）");
+                }
+            } else {
+                log::info!("检测到接管残留，开始恢复 Live 配置（清除接管状态）...");
+                // 用户关闭自启恢复：彻底恢复原始配置并清除所有接管标志，
+                // 下次启动不再自动重接管。
+                if let Err(e) = proxy_service.stop_with_restore().await {
+                    log::error!("退出时恢复 Live 配置失败: {e}");
+                } else {
+                    log::info!("已恢复 Live 配置并清除接管状态");
+                }
+            }
+            return;
+        }
+
+        // 关闭态兜底：无备份/占位符残留，但 enabled 标志仍在（半接管状态）。
+        // 若只 stop()，标志会留存并在下次启动重新武装接管；这里显式清除。
+        if !resume_on_startup && !enabled_proxy_apps_on_startup(&state.db).await.is_empty() {
+            log::info!("检测到残留接管标志（半接管状态），恢复 Live 配置并清除接管状态...");
+            if let Err(e) = proxy_service.stop_with_restore().await {
                 log::error!("退出时恢复 Live 配置失败: {e}");
             } else {
-                log::info!("已恢复 Live 配置（代理状态已保留，下次启动将自动恢复）");
+                log::info!("已恢复 Live 配置并清除接管状态");
             }
             return;
         }
@@ -1960,12 +1991,39 @@ async fn enabled_proxy_apps_on_startup(db: &database::Database) -> Vec<&'static 
     apps
 }
 
+/// 清除所有应用的接管标志（`proxy_config.enabled`）。
+///
+/// 「开机自动恢复路由接管」关闭时在启动阶段调用：崩溃恢复已经把 Live 配置
+/// 恢复为原始内容，这里再把残留的接管标志清掉，使本次及后续启动都不会
+/// 自动重新接管，客户端配置不再指向失效的路由地址。
+async fn clear_enabled_proxy_apps_for_startup(db: &database::Database) {
+    for app_type in PROXY_STARTUP_APP_TYPES {
+        if let Ok(mut config) = db.get_proxy_config_for_app(app_type).await {
+            if config.enabled {
+                config.enabled = false;
+                if let Err(e) = db.update_proxy_config_for_app(config).await {
+                    log::warn!("清除 {app_type} 接管标志失败: {e}");
+                }
+            }
+        }
+    }
+    let _ = db.set_live_takeover_active(false).await;
+}
+
 async fn restore_proxy_state_on_startup(state: &store::AppState) {
     // 收集需要恢复接管的应用列表（从 proxy_config.enabled 读取）
     let apps_to_restore = enabled_proxy_apps_on_startup(&state.db).await;
 
     if apps_to_restore.is_empty() {
         log::debug!("启动时无需恢复代理状态");
+        return;
+    }
+
+    // 「开机自动恢复路由接管」关闭（默认）：崩溃恢复已把 Live 恢复为原始配置，
+    // 这里只清掉残留标志，不重新接管。
+    if !crate::settings::get_settings().proxy_restore_on_startup {
+        log::info!("开机自动恢复路由接管已关闭，清除残留接管标志，保持 Live 为原始配置");
+        clear_enabled_proxy_apps_for_startup(&state.db).await;
         return;
     }
 
@@ -2281,9 +2339,9 @@ pub fn restart_process(app_handle: &tauri::AppHandle) -> ! {
 #[cfg(test)]
 mod tests {
     use super::{
-        classify_exit_request, enabled_proxy_apps_on_startup, redact_url_for_log,
-        redact_url_for_log_with_secrets, redact_url_origin_for_log, runtime_log_level_allows,
-        ExitRequestAction,
+        classify_exit_request, clear_enabled_proxy_apps_for_startup, enabled_proxy_apps_on_startup,
+        redact_url_for_log, redact_url_for_log_with_secrets, redact_url_origin_for_log,
+        runtime_log_level_allows, ExitRequestAction,
     };
     use crate::database::Database;
 
@@ -2408,5 +2466,46 @@ mod tests {
         let apps = enabled_proxy_apps_on_startup(&db).await;
 
         assert_eq!(apps, vec!["grokbuild"]);
+    }
+
+    #[tokio::test]
+    async fn clear_enabled_proxy_apps_for_startup_clears_all_flags() {
+        let db = Database::memory().expect("initialize database");
+        for app_type in ["claude", "grokbuild"] {
+            let mut config = db
+                .get_proxy_config_for_app(app_type)
+                .await
+                .expect("read proxy config");
+            config.enabled = true;
+            db.update_proxy_config_for_app(config)
+                .await
+                .expect("enable proxy config");
+        }
+        db.set_live_takeover_active(true)
+            .await
+            .expect("set takeover flag");
+
+        clear_enabled_proxy_apps_for_startup(&db).await;
+
+        assert!(
+            enabled_proxy_apps_on_startup(&db).await.is_empty(),
+            "all enabled flags should be cleared"
+        );
+        for app_type in ["claude", "grokbuild"] {
+            let config = db
+                .get_proxy_config_for_app(app_type)
+                .await
+                .expect("read proxy config");
+            assert!(
+                !config.enabled,
+                "{app_type} enabled flag should be false after clearing"
+            );
+        }
+        assert!(
+            !db.is_live_takeover_active()
+                .await
+                .expect("read takeover flag"),
+            "legacy takeover flag should be cleared"
+        );
     }
 }

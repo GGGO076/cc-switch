@@ -4654,6 +4654,86 @@ mod tests {
 
     #[tokio::test]
     #[serial]
+    async fn stop_with_restore_clears_per_app_enabled_flag_and_backup() {
+        let _home = TempHome::new();
+        crate::settings::reload_settings().expect("reload settings");
+
+        let db = Arc::new(Database::memory().expect("init db"));
+        use_ephemeral_proxy_port(&db).await;
+        let service = ProxyService::new(db.clone());
+
+        let provider = Provider::with_id(
+            "p1".to_string(),
+            "P1".to_string(),
+            json!({
+                "env": {
+                    "ANTHROPIC_API_KEY": "provider-key",
+                    "ANTHROPIC_BASE_URL": "https://api.anthropic.com"
+                }
+            }),
+            None,
+        );
+        db.save_provider("claude", &provider)
+            .expect("save provider");
+        db.set_current_provider("claude", "p1")
+            .expect("set db current provider");
+        crate::settings::set_current_provider(&AppType::Claude, Some("p1"))
+            .expect("set local current provider");
+        service
+            .write_claude_live(&json!({
+                "env": {
+                    "ANTHROPIC_API_KEY": "live-key",
+                    "ANTHROPIC_BASE_URL": "https://api.anthropic.com"
+                }
+            }))
+            .expect("seed claude live config");
+
+        service
+            .set_takeover_for_app("claude", true)
+            .await
+            .expect("enable takeover");
+
+        let taken_over = db
+            .get_proxy_config_for_app("claude")
+            .await
+            .expect("read claude proxy config");
+        assert!(taken_over.enabled, "takeover should be enabled before stop");
+
+        service
+            .stop_with_restore()
+            .await
+            .expect("stop proxy and restore live config");
+
+        let restored = db
+            .get_proxy_config_for_app("claude")
+            .await
+            .expect("read claude proxy config after stop");
+        assert!(
+            !restored.enabled,
+            "stop_with_restore must clear the per-app enabled flag"
+        );
+        assert!(
+            db.get_live_backup("claude")
+                .await
+                .expect("read live backup")
+                .is_none(),
+            "stop_with_restore must delete the live backup"
+        );
+
+        let live = service.read_claude_live().expect("read restored live");
+        let base_url = live
+            .get("env")
+            .and_then(|env| env.get("ANTHROPIC_BASE_URL"))
+            .and_then(|value| value.as_str())
+            .expect("restored base url");
+        assert_eq!(
+            base_url, "https://api.anthropic.com",
+            "stop_with_restore must restore the original base url"
+        );
+    }
+
+    #[tokio::test]
+    #[serial]
     async fn update_config_reprojection_waits_for_codex_switch_lock_before_rebuilding_live_auth() {
         use tokio::time::{sleep, timeout, Duration};
 
