@@ -230,7 +230,7 @@ export function ProviderCard({
   // OMO and OMO Slim share the same card behavior
   const isAnyOmo = isOmo || isOmoSlim;
   const handleDisableAnyOmo = isOmoSlim ? onDisableOmoSlim : onDisableOmo;
-  const isAdditiveMode = (appId === "opencode" && !isAnyOmo) || appId === "pi" || appId === "omp";
+  const isAdditiveMode = (appId === "opencode" && !isAnyOmo) || appId === "pi" || appId === "omp" || appId === "prime";
 
   const { data: health } = useProviderHealth(
     provider.id,
@@ -351,7 +351,7 @@ export function ProviderCard({
     ? isCurrent
     : appId === "openclaw"
       ? Boolean(isDefaultModel)
-      : appId === "opencode" || appId === "pi" || appId === "omp"
+      : appId === "opencode" || appId === "pi" || appId === "omp" || appId === "prime"
         ? false
         : isAutoFailoverEnabled
           ? activeProviderId === provider.id

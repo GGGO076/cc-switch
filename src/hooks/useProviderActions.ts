@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
   ompApi,
   piApi,
+  primeApi,
   providersApi,
   settingsApi,
   openclawApi,
@@ -394,6 +395,8 @@ export function useProviderActions(
           await piApi.updateProviderUsageScript(provider.id, script);
         } else if (activeApp === "omp") {
           await ompApi.updateProviderUsageScript(provider.id, script);
+        } else if (activeApp === "prime") {
+          await primeApi.updateProviderUsageScript(provider.id, script);
         } else {
           await providersApi.update(updatedProvider, activeApp);
         }

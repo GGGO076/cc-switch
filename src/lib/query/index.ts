@@ -5,3 +5,4 @@ export * from "./proxy";
 export * from "./subscription";
 export * from "./pi";
 export * from "./omp";
+export * from "./prime";

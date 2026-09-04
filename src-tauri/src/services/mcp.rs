@@ -147,6 +147,7 @@ impl McpService {
             }
             AppType::Pi => {}
             AppType::Omp => {}
+            AppType::Prime => {}
         }
         Ok(())
     }
@@ -185,6 +186,7 @@ impl McpService {
             }
             AppType::Pi => {}
             AppType::Omp => {}
+            AppType::Prime => {}
         }
         Ok(())
     }
@@ -231,7 +233,7 @@ impl McpService {
     ) -> Result<(), AppError> {
         if matches!(
             app,
-            AppType::OpenClaw | AppType::ClaudeDesktop | AppType::Pi | AppType::Omp
+            AppType::OpenClaw | AppType::ClaudeDesktop | AppType::Pi | AppType::Omp | AppType::Prime
         ) {
             return Ok(());
         }

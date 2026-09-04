@@ -223,6 +223,7 @@ const UnifiedSkillsPanel = React.forwardRef<
       hermes: 0,
       pi: 0,
       omp: 0,
+      prime: 0,
     };
     if (!skills) return counts;
     skills.forEach((skill) => {

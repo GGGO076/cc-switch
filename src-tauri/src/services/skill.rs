@@ -611,6 +611,9 @@ impl SkillService {
             AppType::Omp => {
                 return Ok(crate::omp_config::get_omp_agent_dir()?.join("skills"));
             }
+            AppType::Prime => {
+                return Ok(crate::prime_config::get_prime_agent_dir()?.join("skills"));
+            }
         }
 
         // 默认路径：回退到用户主目录下的标准位置。
@@ -629,6 +632,7 @@ impl SkillService {
             AppType::Hermes => crate::hermes_config::get_hermes_dir().join("skills"),
             AppType::Pi => crate::pi_config::get_pi_agent_dir()?.join("skills"),
             AppType::Omp => crate::omp_config::get_omp_agent_dir()?.join("skills"),
+            AppType::Prime => crate::prime_config::get_prime_agent_dir()?.join("skills"),
         })
     }
 
@@ -2469,7 +2473,8 @@ impl SkillService {
     fn sync_to_app_unlocked(db: &Arc<Database>, app: &AppType) -> Result<()> {
         // OMP skill sync is out of scope (like Pi's dedicated-pass skip):
         // never write into OMP's agent directory from the skills subsystem.
-        if matches!(app, AppType::ClaudeDesktop | AppType::Pi | AppType::Omp) {
+        // Prime skill sync is out of scope: same skip.
+        if matches!(app, AppType::ClaudeDesktop | AppType::Pi | AppType::Omp | AppType::Prime) {
             return Ok(());
         }
         let skills = db.get_all_installed_skills()?;

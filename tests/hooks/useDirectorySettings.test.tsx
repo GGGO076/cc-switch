@@ -71,6 +71,7 @@ describe("useDirectorySettings", () => {
       if (app === "gemini") return "/remote/gemini";
       if (app === "grokbuild") return "/remote/grok";
       if (app === "omp") return "/remote/omp";
+      if (app === "prime") return "/remote/prime";
       if (app === "opencode") return "/remote/opencode";
       if (app === "openclaw") return "/remote/openclaw";
       if (app === "pi") return "/remote/pi";
@@ -100,6 +101,7 @@ describe("useDirectorySettings", () => {
       hermes: "/remote/hermes",
       pi: "/remote/pi",
       omp: "/remote/omp",
+      prime: "/remote/prime",
     });
   });
 

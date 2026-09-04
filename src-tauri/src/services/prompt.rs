@@ -245,7 +245,8 @@ impl PromptService {
         // Pi derives activation from its native AGENTS.md; its persisted prompt
         // rows are intentionally disabled and must not drive generic projection.
         // OMP prompts are out of scope: same skip.
-        if matches!(app, AppType::ClaudeDesktop | AppType::Pi | AppType::Omp) {
+        // Prime prompts are out of scope: same skip.
+        if matches!(app, AppType::ClaudeDesktop | AppType::Pi | AppType::Omp | AppType::Prime) {
             return Ok(());
         }
 

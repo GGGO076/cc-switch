@@ -162,6 +162,11 @@ pub(crate) fn build_provider_from_request(
                 "OMP providers must be added from the OMP provider page".to_string(),
             ));
         }
+        AppType::Prime => {
+            return Err(AppError::InvalidInput(
+                "Prime providers must be added from the Prime provider page".to_string(),
+            ));
+        }
     };
 
     // Build usage script configuration if provided

@@ -3706,6 +3706,7 @@ fn wsl_distro_for_tool(tool: &str) -> Option<String> {
         "hermes" => crate::settings::get_hermes_override_dir(),
         "pi" => crate::settings::get_pi_override_dir(),
         "omp" => crate::settings::get_omp_override_dir(),
+        "prime" => crate::settings::get_prime_override_dir(),
         _ => None,
     }?;
 

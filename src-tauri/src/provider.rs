@@ -227,6 +227,11 @@ impl Provider {
                 crate::omp_config::provider_base_url(settings).unwrap_or_default(),
                 str_at(settings.get("apiKey")),
             ),
+            // Prime custom providers share Pi's native models.json field names.
+            AppType::Prime => (
+                crate::prime_config::provider_base_url(settings).unwrap_or_default(),
+                str_at(settings.get("apiKey")),
+            ),
             // OpenCode (OMO) nests credentials under `options` (the SDK options object).
             AppType::OpenCode => {
                 let options = settings.get("options");

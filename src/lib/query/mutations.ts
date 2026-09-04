@@ -9,6 +9,7 @@ import {
   extractErrorMessage,
   translateOmpProviderMutationError,
   translatePiProviderMutationError,
+  translatePrimeProviderMutationError,
 } from "@/utils/errorUtils";
 import { generateUUID } from "@/utils/uuid";
 import { openclawKeys } from "@/hooks/useOpenClaw";
@@ -17,6 +18,7 @@ import { proxyKeys } from "@/lib/query/proxy";
 import { usageKeys } from "@/lib/query/usage";
 import { invalidatePiProviderCaches } from "@/lib/query/pi";
 import { invalidateOmpProviderCaches } from "@/lib/query/omp";
+import { invalidatePrimeProviderCaches } from "@/lib/query/prime";
 import { GROKBUILD_OFFICIAL_PROVIDER_ID } from "@/utils/providerCapabilities";
 
 export const useAddProviderMutation = (appId: AppId) => {
@@ -67,7 +69,8 @@ export const useAddProviderMutation = (appId: AppId) => {
         appId === "openclaw" ||
         appId === "hermes" ||
         appId === "pi" ||
-        appId === "omp"
+        appId === "omp" ||
+        appId === "prime"
       ) {
         if (
           providerInput.category === "omo" ||
@@ -147,7 +150,9 @@ export const useAddProviderMutation = (appId: AppId) => {
           ? translatePiProviderMutationError(rawDetail, t)
           : appId === "omp"
             ? translateOmpProviderMutationError(rawDetail, t)
-            : "") ||
+            : appId === "prime"
+              ? translatePrimeProviderMutationError(rawDetail, t)
+              : "") ||
         rawDetail ||
         t("common.unknown");
       toast.error(
@@ -163,6 +168,9 @@ export const useAddProviderMutation = (appId: AppId) => {
       }
       if (appId === "omp") {
         await invalidateOmpProviderCaches(queryClient);
+      }
+      if (appId === "prime") {
+        await invalidatePrimeProviderCaches(queryClient);
       }
     },
   });
@@ -217,7 +225,9 @@ export const useUpdateProviderMutation = (appId: AppId) => {
           ? translatePiProviderMutationError(rawDetail, t)
           : appId === "omp"
             ? translateOmpProviderMutationError(rawDetail, t)
-            : "") ||
+            : appId === "prime"
+              ? translatePrimeProviderMutationError(rawDetail, t)
+              : "") ||
         rawDetail ||
         t("common.unknown");
       toast.error(
@@ -233,6 +243,9 @@ export const useUpdateProviderMutation = (appId: AppId) => {
       }
       if (appId === "omp") {
         await invalidateOmpProviderCaches(queryClient);
+      }
+      if (appId === "prime") {
+        await invalidatePrimeProviderCaches(queryClient);
       }
     },
   });
@@ -298,7 +311,9 @@ export const useDeleteProviderMutation = (appId: AppId) => {
           ? translatePiProviderMutationError(rawDetail, t)
           : appId === "omp"
             ? translateOmpProviderMutationError(rawDetail, t)
-            : "") ||
+            : appId === "prime"
+              ? translatePrimeProviderMutationError(rawDetail, t)
+              : "") ||
         rawDetail ||
         t("common.unknown");
       toast.error(
@@ -314,6 +329,9 @@ export const useDeleteProviderMutation = (appId: AppId) => {
       }
       if (appId === "omp") {
         await invalidateOmpProviderCaches(queryClient);
+      }
+      if (appId === "prime") {
+        await invalidatePrimeProviderCaches(queryClient);
       }
     },
   });
@@ -400,6 +418,9 @@ export const useSwitchProviderMutation = (appId: AppId) => {
       }
       if (appId === "omp") {
         await invalidateOmpProviderCaches(queryClient);
+      }
+      if (appId === "prime") {
+        await invalidatePrimeProviderCaches(queryClient);
       }
     },
   });

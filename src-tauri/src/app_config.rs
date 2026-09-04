@@ -34,6 +34,7 @@ impl McpApps {
             AppType::Hermes => self.hermes,
             AppType::Pi => false, // Pi core has no native MCP registry.
             AppType::Omp => false, // OMP has no native MCP registry either.
+            AppType::Prime => false, // Prime has no native MCP registry either.
             AppType::ClaudeDesktop => false,
         }
     }
@@ -50,6 +51,7 @@ impl McpApps {
             AppType::Hermes => self.hermes = enabled,
             AppType::Pi => {}            // Pi core has no native MCP registry.
             AppType::Omp => {}           // OMP has no native MCP registry either.
+            AppType::Prime => {}         // Prime has no native MCP registry either.
             AppType::ClaudeDesktop => {} // Claude Desktop 3P provider config doesn't support MCP here
         }
     }
@@ -120,6 +122,7 @@ impl SkillApps {
             AppType::Hermes => self.hermes,
             AppType::Pi => self.pi,
             AppType::Omp => false, // OMP skill sync is out of scope.
+            AppType::Prime => false, // Prime skill sync is out of scope.
             AppType::OpenClaw => false, // OpenClaw doesn't support Skills
             AppType::ClaudeDesktop => false,
         }
@@ -136,6 +139,7 @@ impl SkillApps {
             AppType::Hermes => self.hermes = enabled,
             AppType::Pi => self.pi = enabled,
             AppType::Omp => {} // OMP skill sync is out of scope, ignore.
+            AppType::Prime => {} // Prime skill sync is out of scope, ignore.
             AppType::OpenClaw => {} // OpenClaw doesn't support Skills, ignore
             AppType::ClaudeDesktop => {} // Claude Desktop 3P profiles don't use CC Switch skill sync
         }
@@ -397,6 +401,7 @@ pub enum AppType {
     Hermes,
     Pi,
     Omp,
+    Prime,
 }
 
 impl AppType {
@@ -412,15 +417,16 @@ impl AppType {
             AppType::Hermes => "hermes",
             AppType::Pi => "pi",
             AppType::Omp => "omp",
+            AppType::Prime => "prime",
         }
     }
 
     /// - Additive mode (true): Providers coexist in native config and can be enabled independently
-    ///   (OpenCode, OpenClaw, Hermes, Pi, Omp)
+    ///   (OpenCode, OpenClaw, Hermes, Pi, Omp, Prime)
     pub fn is_additive_mode(&self) -> bool {
         matches!(
             self,
-            AppType::OpenCode | AppType::OpenClaw | AppType::Hermes | AppType::Pi | AppType::Omp
+            AppType::OpenCode | AppType::OpenClaw | AppType::Hermes | AppType::Pi | AppType::Omp | AppType::Prime
         )
     }
 
@@ -444,6 +450,7 @@ impl AppType {
             AppType::Hermes,
             AppType::Pi,
             AppType::Omp,
+            AppType::Prime,
         ]
         .into_iter()
     }
@@ -465,10 +472,11 @@ impl FromStr for AppType {
             "hermes" => Ok(AppType::Hermes),
             "pi" => Ok(AppType::Pi),
             "omp" | "oh-my-pi" | "ohmy-pi" => Ok(AppType::Omp),
+            "prime" => Ok(AppType::Prime),
             other => Err(AppError::localized(
                 "unsupported_app",
-                format!("不支持的应用标识: '{other}'。可选值: claude, claude-desktop, codex, gemini, grokbuild, opencode, openclaw, hermes, pi, omp。"),
-                format!("Unsupported app id: '{other}'. Allowed: claude, claude-desktop, codex, gemini, grokbuild, opencode, openclaw, hermes, pi, omp."),
+                format!("不支持的应用标识: '{other}'。可选值: claude, claude-desktop, codex, gemini, grokbuild, opencode, openclaw, hermes, pi, omp, prime。"),
+                format!("Unsupported app id: '{other}'. Allowed: claude, claude-desktop, codex, gemini, grokbuild, opencode, openclaw, hermes, pi, omp, prime."),
             )),
         }
     }
@@ -510,6 +518,7 @@ impl CommonConfigSnippets {
             AppType::Hermes => self.hermes.as_ref(),
             AppType::Pi => None,
             AppType::Omp => None,
+            AppType::Prime => None,
         }
     }
 
@@ -526,6 +535,7 @@ impl CommonConfigSnippets {
             AppType::Hermes => self.hermes = snippet,
             AppType::Pi => {}
             AppType::Omp => {}
+            AppType::Prime => {}
         }
     }
 }
@@ -854,6 +864,8 @@ impl MultiAppConfig {
             AppType::Pi => return Ok(false),
             // OMP prompts are out of scope, same as Pi.
             AppType::Omp => return Ok(false),
+            // Prime prompts are out of scope, same as Pi.
+            AppType::Prime => return Ok(false),
         };
 
         prompts.insert(id, prompt);
@@ -899,6 +911,7 @@ impl MultiAppConfig {
                 AppType::Hermes => continue,   // Hermes didn't exist in v3.6.x, skip
                 AppType::Pi => continue,       // Pi didn't exist in v3.6.x, skip
                 AppType::Omp => continue,      // OMP didn't exist in v3.6.x, skip
+                AppType::Prime => continue,    // Prime didn't exist in v3.6.x, skip
             };
 
             for (id, entry) in old_servers {

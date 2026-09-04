@@ -113,12 +113,12 @@ export function EditProviderDialog({
   currentFormReadyToken.current = formReadyToken;
   const [formReadyState, setFormReadyState] = useState({
     token: formReadyToken,
-    ready: appId !== "pi" && appId !== "omp",
+    ready: appId !== "pi" && appId !== "omp" && appId !== "prime",
   });
   const isFormReady =
     formReadyState.token === formReadyToken
       ? formReadyState.ready
-      : appId !== "pi" && appId !== "omp";
+      : appId !== "pi" && appId !== "omp" && appId !== "prime";
   const handleSubmitReadyChange = useCallback(
     (ready: boolean) => {
       if (currentFormReadyToken.current === formReadyToken) {
@@ -177,7 +177,7 @@ export function EditProviderDialog({
       // OpenCode uses additive mode, while Pi's shared models.json is owned by
       // the catalog coordinator. Neither has a per-provider generic live
       // snapshot that may replace the DB aggregate in this form.
-      if (appId === "opencode" || appId === "pi" || appId === "omp") {
+      if (appId === "opencode" || appId === "pi" || appId === "omp" || appId === "prime") {
         if (!cancelled) {
           setLiveSettings(null);
           setHasLoadedLive(true);
@@ -305,7 +305,8 @@ export function EditProviderDialog({
         (appId === "opencode" ||
           appId === "openclaw" ||
           appId === "pi" ||
-          appId === "omp") &&
+          appId === "omp" ||
+          appId === "prime") &&
         values.providerKey?.trim()
           ? values.providerKey.trim()
           : provider.id;
@@ -342,7 +343,7 @@ export function EditProviderDialog({
       isOpen={open}
       title={t("provider.editProvider")}
       onClose={handlePanelClose}
-      contentClassName={appId === "pi" || appId === "omp" ? "pb-0" : undefined}
+      contentClassName={appId === "pi" || appId === "omp" || appId === "prime" ? "pb-0" : undefined}
       footer={
         <Button
           type="submit"

@@ -273,7 +273,7 @@ export interface ProviderFormProps {
 }
 
 export function ProviderForm(props: ProviderFormProps) {
-  if (props.appId === "pi" || props.appId === "omp") {
+  if (props.appId === "pi" || props.appId === "omp" || props.appId === "prime") {
     return <PiProviderForm {...props} />;
   }
   if (props.appId === "claude-desktop") {

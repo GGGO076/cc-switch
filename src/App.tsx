@@ -35,6 +35,7 @@ import { proxyKeys, useProvidersQuery, useSettingsQuery } from "@/lib/query";
 import {
   ompApi,
   piApi,
+  primeApi,
   providersApi,
   settingsApi,
   type AppId,
@@ -54,6 +55,7 @@ import {
   extractErrorMessage,
   translateOmpProviderMutationError,
   translatePiProviderMutationError,
+  translatePrimeProviderMutationError,
 } from "@/utils/errorUtils";
 import { isTextEditableTarget } from "@/utils/domUtils";
 import { deepClone } from "@/utils/deepClone";
@@ -103,6 +105,7 @@ import {
   useDisableCurrentOmoSlim,
 } from "@/lib/query/omo";
 import { invalidateOmpProviderCaches, useOmpCurrentState } from "@/lib/query/omp";
+import { invalidatePrimeProviderCaches, usePrimeCurrentState } from "@/lib/query/prime";
 import { invalidatePiProviderCaches, usePiCurrentState } from "@/lib/query/pi";
 import WorkspaceFilesPanel from "@/components/workspace/WorkspaceFilesPanel";
 import EnvPanel from "@/components/openclaw/EnvPanel";
@@ -236,6 +239,10 @@ function App() {
       setCurrentView("providers");
       return;
     }
+    if (currentView === "mcp" && sharedFeatureApp === "prime") {
+      setCurrentView("providers");
+      return;
+    }
     if (
       currentView === "sessions" &&
       sharedFeatureApp !== "claude" &&
@@ -302,6 +309,7 @@ function App() {
   });
   const { data: piCurrentState } = usePiCurrentState(activeApp === "pi");
   const { data: ompCurrentState } = useOmpCurrentState(activeApp === "omp");
+  const { data: primeCurrentState } = usePrimeCurrentState(activeApp === "prime");
   const providers = useMemo(() => data?.providers ?? {}, [data]);
   const currentProviderId = data?.currentProviderId ?? "";
   const isOpenClawView =
@@ -324,7 +332,8 @@ function App() {
     sharedFeatureApp === "gemini" ||
     sharedFeatureApp === "hermes" ||
     sharedFeatureApp === "pi";
-  const hasMcpSupport = sharedFeatureApp !== "pi" && sharedFeatureApp !== "omp";
+  const hasMcpSupport =
+    sharedFeatureApp !== "pi" && sharedFeatureApp !== "omp" && sharedFeatureApp !== "prime";
 
   const {
     addProvider,
@@ -398,6 +407,36 @@ function App() {
       );
     }
   };
+  const handleEnablePrimeProvider = async (provider: Provider) => {
+    try {
+      await providersApi.switch(provider.id, "prime");
+      await invalidatePrimeProviderCaches(queryClient);
+      await providersApi.updateTrayMenu().catch((error) => {
+        console.error(
+          "Failed to update tray menu after enabling Prime provider",
+          error,
+        );
+      });
+      toast.success(
+        t("prime.provider.enabled", {
+          defaultValue: "已在 Prime 中启用",
+        }),
+        { closeButton: true },
+      );
+    } catch (error) {
+      const detail = extractErrorMessage(error);
+      toast.error(
+        t("prime.provider.enableFailed", {
+          defaultValue: "无法在 Prime 中启用此供应商",
+        }),
+        {
+          description:
+            translatePrimeProviderMutationError(detail, t) || detail || undefined,
+          closeButton: true,
+        },
+      );
+    }
+  };
 
   const disableOmoMutation = useDisableCurrentOmo();
   const handleDisableOmo = () => {
@@ -449,6 +488,9 @@ function App() {
             }
             if (event.appType === "omp") {
               await invalidateOmpProviderCaches(queryClient);
+            }
+            if (event.appType === "prime") {
+              await invalidatePrimeProviderCaches(queryClient);
             }
           },
         );
@@ -771,12 +813,17 @@ function App() {
             ? translatePiProviderMutationError(detail, t) || detail
             : activeApp === "omp"
               ? translateOmpProviderMutationError(detail, t) || detail
-              : detail;
+              : activeApp === "prime"
+                ? translatePrimeProviderMutationError(detail, t) || detail
+                : detail;
         if (activeApp === "pi") {
           void invalidatePiProviderCaches(queryClient).catch(() => undefined);
         }
         if (activeApp === "omp") {
           void invalidateOmpProviderCaches(queryClient).catch(() => undefined);
+        }
+        if (activeApp === "prime") {
+          void invalidatePrimeProviderCaches(queryClient).catch(() => undefined);
         }
         toast.error(t("notifications.removeFromConfigFailed"), {
           description: description || t("common.unknown"),
@@ -789,6 +836,9 @@ function App() {
       }
       if (activeApp === "omp") {
         await invalidateOmpProviderCaches(queryClient);
+      }
+      if (activeApp === "prime") {
+        await invalidatePrimeProviderCaches(queryClient);
       }
       // Invalidate queries to refresh the isInConfig state
       if (activeApp === "opencode") {
@@ -816,6 +866,10 @@ function App() {
             ? t("omp.provider.removed", {
                 defaultValue: "已从 OMP 移除",
               })
+            : activeApp === "prime"
+              ? t("prime.provider.removed", {
+                  defaultValue: "已从 Prime 移除",
+                })
             : t("notifications.removeFromConfigSuccess", {
                 defaultValue: "已从配置移除",
               }),
@@ -867,7 +921,8 @@ function App() {
       activeApp === "openclaw" ||
       activeApp === "hermes" ||
       activeApp === "pi" ||
-      activeApp === "omp"
+      activeApp === "omp" ||
+      activeApp === "prime"
     ) {
       let liveProviderIds: string[] = [];
       try {
@@ -894,6 +949,13 @@ function App() {
                         queryFn: () => ompApi.getCurrentState(),
                       })
                     ).enabledProviderIds
+                  : activeApp === "prime"
+                    ? (
+                        await queryClient.ensureQueryData({
+                          queryKey: ["prime", "currentState"],
+                          queryFn: () => primeApi.getCurrentState(),
+                        })
+                      ).enabledProviderIds
                   : (
                       await queryClient.ensureQueryData({
                         queryKey: ["pi", "currentState"],
@@ -971,6 +1033,9 @@ function App() {
     const isOmpGlobalDefault =
       activeApp === "omp" &&
       ompCurrentState?.defaultProviderId === confirmAction.provider.id;
+    const isPrimeGlobalDefault =
+      activeApp === "prime" &&
+      primeCurrentState?.defaultProviderId === confirmAction.provider.id;
 
     if (isPiGlobalDefault) {
       return `${message}\n\n${t("confirm.piDefaultProviderWarning")}`;
@@ -978,12 +1043,16 @@ function App() {
     if (isOmpGlobalDefault) {
       return `${message}\n\n${t("confirm.ompDefaultProviderWarning")}`;
     }
+    if (isPrimeGlobalDefault) {
+      return `${message}\n\n${t("confirm.primeDefaultProviderWarning")}`;
+    }
     return message;
   }, [
     activeApp,
     confirmAction,
     piCurrentState?.defaultProviderId,
     ompCurrentState?.defaultProviderId,
+    primeCurrentState?.defaultProviderId,
     t,
   ]);
 
@@ -1188,7 +1257,9 @@ function App() {
                           ? handleEnablePiProvider
                           : activeApp === "omp"
                             ? handleEnableOmpProvider
-                            : switchProvider
+                            : activeApp === "prime"
+                              ? handleEnablePrimeProvider
+                              : switchProvider
                       }
                       onEdit={(provider) => {
                         setEditingProvider(provider);
@@ -1201,7 +1272,8 @@ function App() {
                         activeApp === "openclaw" ||
                         activeApp === "hermes" ||
                         activeApp === "pi" ||
-                        activeApp === "omp"
+                        activeApp === "omp" ||
+                        activeApp === "prime"
                           ? (provider) =>
                               setConfirmAction({ provider, action: "remove" })
                           : undefined

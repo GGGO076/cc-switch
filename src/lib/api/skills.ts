@@ -25,6 +25,7 @@ export interface SkillApps {
   hermes: boolean;
   pi: boolean;
   omp?: boolean;
+  prime?: boolean;
 }
 
 /** 已安装的 Skill（v3.10.0+ 统一结构） */

@@ -17,6 +17,7 @@ export function ProviderEmptyState({
   const { t } = useTranslation();
   const isPi = appId === "pi";
   const isOmp = appId === "omp";
+  const isPrime = appId === "prime";
   const showSnippetHint =
     appId === "claude" || appId === "codex" || appId === "gemini";
 
@@ -30,14 +31,18 @@ export function ProviderEmptyState({
           ? t("pi.empty.title")
           : isOmp
             ? t("omp.empty.title")
-            : t("provider.noProviders")}
+            : isPrime
+              ? t("prime.empty.title")
+              : t("provider.noProviders")}
       </h3>
       <p className="mt-2 max-w-lg text-sm text-muted-foreground">
         {isPi
           ? t("pi.empty.description")
           : isOmp
             ? t("omp.empty.description")
-            : t("provider.noProvidersDescription")}
+            : isPrime
+              ? t("prime.empty.description")
+              : t("provider.noProvidersDescription")}
       </p>
       {showSnippetHint && (
         <p className="mt-1 max-w-lg text-sm text-muted-foreground">

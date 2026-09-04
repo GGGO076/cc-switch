@@ -28,6 +28,7 @@ pub fn prompt_file_path(app: &AppType) -> Result<PathBuf, AppError> {
         AppType::Hermes => crate::hermes_config::get_hermes_dir(),
         AppType::Pi => crate::pi_config::get_pi_agent_dir()?,
         AppType::Omp => crate::omp_config::get_omp_agent_dir()?,
+        AppType::Prime => crate::prime_config::get_prime_agent_dir()?,
         AppType::ClaudeDesktop => unreachable!("handled above"),
     };
 
@@ -39,6 +40,7 @@ pub fn prompt_file_path(app: &AppType) -> Result<PathBuf, AppError> {
         AppType::Hermes => "SOUL.md",
         AppType::Pi => "AGENTS.md",
         AppType::Omp => "AGENTS.md",
+        AppType::Prime => "AGENTS.md",
         AppType::ClaudeDesktop => unreachable!("handled above"),
     };
 

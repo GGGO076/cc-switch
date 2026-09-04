@@ -337,7 +337,8 @@
       "message": "The \"Common Config Snippet\" lets you share plugins, environment variables, and other settings across different providers — so they won't be lost when you switch.\n\nHow to use:\n① Edit a provider → click \"Edit Common Config\" → \"Extract from Editor\"\n② When creating a new provider, check \"Apply Common Config\" (enabled by default)\n\nIf you've newly installed plugins or hooks, re-extract the common config to keep them in sync.",
       "confirm": "Got it"
     },
-    "ompDefaultProviderWarning": "OMP's global default currently points to this provider. If you continue, OMP will try another available model; use /model to choose one or /login to sign in to another provider."
+    "ompDefaultProviderWarning": "OMP's global default currently points to this provider. If you continue, OMP will try another available model; use /model to choose one or /login to sign in to another provider.",
+    "primeDefaultProviderWarning": "Prime's global default currently points to this provider. If you continue, Prime will try another available model; use /model to choose one or /login to sign in to another provider."
   },
   "settings": {
     "title": "Settings",
@@ -903,7 +904,10 @@
     "saveFailedGeneric": "Save failed, please try again",
     "ompConfigDir": "OMP Configuration Directory",
     "ompConfigDirDescription": "Override the OMP configuration directory (models.json and config.yml).",
-    "browsePlaceholderOmp": "e.g., /home/<your-username>/.omp/agent"
+    "browsePlaceholderOmp": "e.g., /home/<your-username>/.omp/agent",
+    "primeConfigDir": "Prime Configuration Directory",
+    "primeConfigDirDescription": "Override the Prime configuration directory (models.json and settings.json).",
+    "browsePlaceholderPrime": "e.g., /home/<your-username>/.prime/agent"
   },
   "apps": {
     "claude": "Claude",
@@ -917,7 +921,8 @@
     "openclaw": "OpenClaw",
     "hermes": "Hermes",
     "pi": "Pi",
-    "omp": "OMP"
+    "omp": "OMP",
+    "prime": "Prime"
   },
   "pi": {
     "empty": {
@@ -1076,6 +1081,25 @@
     "current": {
       "readFailed": "Could not read OMP's provider configuration",
       "stateUnavailableHint": "Provider changes are disabled until CC Switch can read OMP's provider configuration."
+    }
+  },
+  "prime": {
+    "empty": {
+      "title": "No API key providers yet",
+      "description": "Use the + button in the top-right corner to add a preset or custom provider."
+    },
+    "provider": {
+      "enabled": "Enabled in Prime",
+      "enableFailed": "Could not enable this provider in Prime",
+      "removed": "Removed from Prime",
+      "writeConflict": "Another process is updating Prime's configuration. Try again shortly."
+    },
+    "form": {
+      "providerKeyDuplicate": "This provider key already exists"
+    },
+    "current": {
+      "readFailed": "Could not read Prime's provider configuration",
+      "stateUnavailableHint": "Provider changes are disabled until CC Switch can read Prime's provider configuration."
     }
   },
   "appSwitcher": {

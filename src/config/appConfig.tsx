@@ -27,6 +27,7 @@ export const APP_IDS: AppId[] = [
   "hermes",
   "pi",
   "omp",
+  "prime",
 ];
 
 export const DEFAULT_VISIBLE_APPS: VisibleApps = {
@@ -40,6 +41,7 @@ export const DEFAULT_VISIBLE_APPS: VisibleApps = {
   hermes: true,
   pi: true,
   omp: true,
+  prime: true,
 };
 
 /** App IDs shown in Skills panels. */
@@ -72,7 +74,7 @@ export function isProxyAppId(appId: string): appId is ProxyAppId {
 
 export type AdditiveAppId = Extract<
   AppId,
-  "opencode" | "openclaw" | "hermes" | "pi" | "omp"
+  "opencode" | "openclaw" | "hermes" | "pi" | "omp" | "prime"
 >;
 
 export const ADDITIVE_APP_IDS: AdditiveAppId[] = [
@@ -81,14 +83,15 @@ export const ADDITIVE_APP_IDS: AdditiveAppId[] = [
   "hermes",
   "pi",
   "omp",
+  "prime",
 ];
 
 export function isAdditiveAppId(appId: string): appId is AdditiveAppId {
   return (ADDITIVE_APP_IDS as string[]).includes(appId);
 }
 
-/** Pi and OMP have no native MCP registry; do not manufacture a disabled mirror. */
-export type McpAppId = Exclude<AppId, "claude-desktop" | "openclaw" | "pi" | "omp">;
+/** Pi, OMP and Prime have no native MCP registry; do not manufacture a disabled mirror. */
+export type McpAppId = Exclude<AppId, "claude-desktop" | "openclaw" | "pi" | "omp" | "prime">;
 export const MCP_APP_IDS: McpAppId[] = [
   "claude",
   "codex",
@@ -199,6 +202,14 @@ export const APP_ICON_MAP: Record<AppId, AppConfig> = {
   omp: {
     label: "OMP",
     icon: <ProviderIcon icon="pi" name="OMP" size={14} showFallback={false} />,
+    activeClass:
+      "bg-fuchsia-500/10 ring-1 ring-fuchsia-500/20 hover:bg-fuchsia-500/20 text-fuchsia-600 dark:text-fuchsia-400",
+    badgeClass:
+      "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300 hover:bg-fuchsia-500/20 border-0 gap-1.5",
+  },
+  prime: {
+    label: "Prime",
+    icon: <ProviderIcon icon="pi" name="Prime" size={14} showFallback={false} />,
     activeClass:
       "bg-fuchsia-500/10 ring-1 ring-fuchsia-500/20 hover:bg-fuchsia-500/20 text-fuchsia-600 dark:text-fuchsia-400",
     badgeClass:

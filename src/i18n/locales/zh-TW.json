@@ -337,7 +337,8 @@
       "message": "「通用設定片段」可以在不同供應商之間共用外掛程式、環境變數等設定，避免切換供應商時遺失這些設定。\n\n使用方法：\n① 編輯供應商時點擊「編輯通用設定」→「從編輯內容擷取」\n② 新增供應商時勾選「套用通用設定」（預設已勾選）\n\n如果您新安裝了外掛程式或 Hook，請重新擷取一次通用設定。",
       "confirm": "我了解了"
     },
-    "ompDefaultProviderWarning": "OMP 的全域預設目前指向此供應商。繼續後，OMP 會嘗試其他可用模型；你可以在 OMP 中使用 /model 重新選擇，或使用 /login 登入其他供應商。"
+    "ompDefaultProviderWarning": "OMP 的全域預設目前指向此供應商。繼續後，OMP 會嘗試其他可用模型；你可以在 OMP 中使用 /model 重新選擇，或使用 /login 登入其他供應商。",
+    "primeDefaultProviderWarning": "Prime 的全域預設目前指向此供應商。繼續後，Prime 會嘗試其他可用模型；你可以在 Prime 中使用 /model 重新選擇，或使用 /login 登入其他供應商。"
   },
   "settings": {
     "title": "設定",
@@ -904,7 +905,10 @@
     "saveFailedGeneric": "儲存失敗，請重試",
     "ompConfigDir": "OMP 設定目錄",
     "ompConfigDirDescription": "覆寫 OMP 設定目錄（models.json 與 config.yml）。",
-    "browsePlaceholderOmp": "例如：/home/<您的帳號>/.omp/agent"
+    "browsePlaceholderOmp": "例如：/home/<您的帳號>/.omp/agent",
+    "primeConfigDir": "Prime 設定目錄",
+    "primeConfigDirDescription": "覆寫 Prime 設定目錄（models.json 與 settings.json）。",
+    "browsePlaceholderPrime": "例如：/home/<您的帳號>/.prime/agent"
   },
   "apps": {
     "claude": "Claude",
@@ -918,7 +922,8 @@
     "openclaw": "OpenClaw",
     "hermes": "Hermes",
     "pi": "Pi",
-    "omp": "OMP"
+    "omp": "OMP",
+    "prime": "Prime"
   },
   "pi": {
     "empty": {
@@ -1077,6 +1082,25 @@
     "current": {
       "readFailed": "無法讀取 OMP 供應商設定",
       "stateUnavailableHint": "CC Switch 讀取到 OMP 供應商設定前，供應商變更會暫時停用。"
+    }
+  },
+  "prime": {
+    "empty": {
+      "title": "尚未新增 API Key 供應商",
+      "description": "點擊右上角的 +，從預設或自訂設定新增供應商。"
+    },
+    "provider": {
+      "enabled": "已在 Prime 中啟用",
+      "enableFailed": "無法在 Prime 中啟用此供應商",
+      "removed": "已從 Prime 移除",
+      "writeConflict": "Prime 設定正由其他程序修改，請稍後再試。"
+    },
+    "form": {
+      "providerKeyDuplicate": "該供應商標識已存在"
+    },
+    "current": {
+      "readFailed": "無法讀取 Prime 供應商設定",
+      "stateUnavailableHint": "CC Switch 讀取到 Prime 供應商設定前，供應商變更會暫時停用。"
     }
   },
   "appSwitcher": {

@@ -358,6 +358,7 @@ export function SettingsPage({
                             hermesDir={settings.hermesConfigDir}
                             piDir={settings.piConfigDir}
                             ompDir={settings.ompConfigDir}
+                            primeDir={settings.primeConfigDir}
                             onDirectoryChange={updateDirectory}
                             onBrowseDirectory={browseDirectory}
                             onResetDirectory={resetDirectory}

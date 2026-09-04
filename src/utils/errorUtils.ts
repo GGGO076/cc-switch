@@ -82,6 +82,30 @@ export const translateOmpProviderMutationError = (
 
   return "";
 };
+export const translatePrimeProviderMutationError = (
+  message: string,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string => {
+  if (!message) return "";
+
+  if (
+    message.includes("models.json changed") ||
+    message.includes("changed outside CC Switch") ||
+    message.includes("no longer present in models.json") ||
+    message.includes("another value now owns the key")
+  ) {
+    return t("prime.provider.writeConflict");
+  }
+
+  if (
+    message.includes("already exists") &&
+    /prime provider/i.test(message)
+  ) {
+    return t("prime.form.providerKeyDuplicate");
+  }
+
+  return "";
+};
 
 /**
  * 将已知的 MCP 相关后端错误（通常为中文硬编码）映射为 i18n 文案

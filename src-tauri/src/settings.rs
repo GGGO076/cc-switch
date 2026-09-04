@@ -50,6 +50,8 @@ pub struct VisibleApps {
     pub pi: bool,
     #[serde(default = "default_true")]
     pub omp: bool,
+    #[serde(default = "default_true")]
+    pub prime: bool,
 }
 
 impl Default for VisibleApps {
@@ -65,6 +67,7 @@ impl Default for VisibleApps {
             hermes: false, // 默认不显示，需用户手动启用
             pi: true,
             omp: true,
+            prime: true,
         }
     }
 }
@@ -83,6 +86,7 @@ impl VisibleApps {
             AppType::Hermes => self.hermes,
             AppType::Pi => self.pi,
             AppType::Omp => self.omp,
+            AppType::Prime => self.prime,
         }
     }
 }
@@ -439,6 +443,8 @@ pub struct AppSettings {
     pub pi_config_dir: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub omp_config_dir: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prime_config_dir: Option<String>,
 
     // ===== 当前供应商 ID（设备级）=====
     /// 当前 Claude 供应商 ID（本地存储，优先于数据库 is_current）
@@ -557,6 +563,7 @@ impl Default for AppSettings {
             hermes_config_dir: None,
             pi_config_dir: None,
             omp_config_dir: None,
+            prime_config_dir: None,
             current_provider_claude: None,
             current_provider_claude_desktop: None,
             current_provider_codex: None,
@@ -647,6 +654,13 @@ impl AppSettings {
 
         self.omp_config_dir = self
             .omp_config_dir
+            .as_ref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+
+        self.prime_config_dir = self
+            .prime_config_dir
             .as_ref()
             .map(|s| s.trim())
             .filter(|s| !s.is_empty())
@@ -994,6 +1008,14 @@ pub fn get_omp_override_dir() -> Option<PathBuf> {
         .map(|path| resolve_override_path(path))
 }
 
+pub fn get_prime_override_dir() -> Option<PathBuf> {
+    let settings = settings_store().read().ok()?;
+    settings
+        .prime_config_dir
+        .as_ref()
+        .map(|path| resolve_override_path(path))
+}
+
 pub fn preserve_codex_official_auth_on_switch() -> bool {
     settings_store()
         .read()
@@ -1033,6 +1055,7 @@ pub fn get_current_provider(app_type: &AppType) -> Option<String> {
         AppType::Hermes => settings.current_provider_hermes.clone(),
         AppType::Pi => None,
         AppType::Omp => None,
+        AppType::Prime => None,
     }
 }
 
@@ -1053,6 +1076,7 @@ pub fn set_current_provider(app_type: &AppType, id: Option<&str>) -> Result<(), 
         AppType::Hermes => settings.current_provider_hermes = id_owned.clone(),
         AppType::Pi => {}
         AppType::Omp => {}
+        AppType::Prime => {}
     })
 }
 

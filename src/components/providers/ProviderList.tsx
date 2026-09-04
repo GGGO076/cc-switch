@@ -49,6 +49,7 @@ import { Button } from "@/components/ui/button";
 import { isTextEditableTarget } from "@/utils/domUtils";
 import { usePiCurrentState } from "@/lib/query/pi";
 import { useOmpCurrentState } from "@/lib/query/omp";
+import { usePrimeCurrentState } from "@/lib/query/prime";
 import { isProxyAppId } from "@/config/appConfig";
 
 interface ProviderListProps {
@@ -230,12 +231,27 @@ export function ProviderList({
   } = useOmpCurrentState(appId === "omp");
   const isOmpAuthoritativeStateReady =
     appId !== "omp" || isOmpCurrentStateSuccess;
+  const {
+    data: primeCurrentState,
+    isSuccess: isPrimeCurrentStateSuccess,
+    isError: isPrimeCurrentStateError,
+    error: primeCurrentStateError,
+  } = usePrimeCurrentState(appId === "prime");
+  const isPrimeAuthoritativeStateReady =
+    appId !== "prime" || isPrimeCurrentStateSuccess;
   const isOmpProviderInConfig = useCallback(
     (provider: Provider): boolean => {
       if (!isOmpAuthoritativeStateReady) return false;
       return ompCurrentState?.enabledProviderIds.includes(provider.id) ?? false;
     },
     [isOmpAuthoritativeStateReady, ompCurrentState],
+  );
+  const isPrimeProviderInConfig = useCallback(
+    (provider: Provider): boolean => {
+      if (!isPrimeAuthoritativeStateReady) return false;
+      return primeCurrentState?.enabledProviderIds.includes(provider.id) ?? false;
+    },
+    [isPrimeAuthoritativeStateReady, primeCurrentState],
   );
 
   // 连通性检查不发真实请求、无封号/计费风险，直接执行（无需确认弹窗）。
@@ -413,6 +429,29 @@ export function ProviderList({
         </p>
       </div>
     ) : null;
+  const primeStateErrorMessages = [
+    isPrimeCurrentStateError ? extractErrorMessage(primeCurrentStateError) : "",
+  ].filter(Boolean);
+  const primeStateErrorNotice =
+    appId === "prime" && primeStateErrorMessages.length > 0 ? (
+      <div
+        role="alert"
+        className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200"
+      >
+        <div className="flex items-center gap-2 font-medium">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          {t("prime.current.readFailed", {
+            defaultValue: "无法读取 Prime 当前配置",
+          })}
+        </div>
+        <p className="mt-1 text-xs leading-relaxed">
+          {t("prime.current.stateUnavailableHint")}
+          {primeStateErrorMessages.length > 0
+            ? ` ${primeStateErrorMessages.join(" · ")}`
+            : ""}
+        </p>
+      </div>
+    ) : null;
   const ompStateErrorMessages = [
     isOmpCurrentStateError ? extractErrorMessage(ompCurrentStateError) : "",
   ].filter(Boolean);
@@ -455,11 +494,14 @@ export function ProviderList({
       <div className="mt-4 space-y-4">
         {piStateErrorNotice}
         {ompStateErrorNotice}
+        {primeStateErrorNotice}
         <ProviderEmptyState
           appId={appId}
-          onCreate={appId === "pi" || appId === "omp" ? undefined : onCreate}
+          onCreate={
+            appId === "pi" || appId === "omp" || appId === "prime" ? undefined : onCreate
+          }
           onImport={
-            appId === "pi" || appId === "omp"
+            appId === "pi" || appId === "omp" || appId === "prime"
               ? undefined
               : () => importMutation.mutate()
           }
@@ -488,7 +530,7 @@ export function ProviderList({
             const isHermesCurrent =
               appId === "hermes" && hermesCurrentProviderId === provider.id;
             const isCurrent =
-              appId === "pi" || appId === "omp"
+              appId === "pi" || appId === "omp" || appId === "prime"
                 ? false
                 : isOmo
                   ? isOmoCurrent
@@ -508,7 +550,9 @@ export function ProviderList({
                     ? isPiProviderInConfig(provider)
                     : appId === "omp"
                       ? isOmpProviderInConfig(provider)
-                      : isProviderInConfig(provider.id)
+                      : appId === "prime"
+                        ? isPrimeProviderInConfig(provider)
+                        : isProviderInConfig(provider.id)
                 }
                 isOmo={isOmo}
                 isOmoSlim={isOmoSlim}
@@ -543,7 +587,7 @@ export function ProviderList({
                     : isProviderDefaultModel(provider.id)
                 }
                 isRemovalProtected={
-                  appId === "pi" || appId === "omp"
+                  appId === "pi" || appId === "omp" || appId === "prime"
                     ? false
                     : appId === "hermes"
                       ? isHermesCurrent
@@ -556,7 +600,9 @@ export function ProviderList({
                     ? !isPiAuthoritativeStateReady
                     : appId === "omp"
                       ? !isOmpAuthoritativeStateReady
-                      : false
+                      : appId === "prime"
+                        ? !isPrimeAuthoritativeStateReady
+                        : false
                 }
                 onSetAsDefault={
                   onSetAsDefault
@@ -575,6 +621,7 @@ export function ProviderList({
     <div className="mt-4 space-y-4">
       {piStateErrorNotice}
       {ompStateErrorNotice}
+      {primeStateErrorNotice}
       {claudeDesktopStatusMessages.length > 0 && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
           <div className="flex items-center gap-2 font-medium">

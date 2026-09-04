@@ -7,6 +7,7 @@ import { syncCurrentProvidersLiveSafe } from "@/utils/postChangeSync";
 import {
   invalidatePiDirectoryCaches,
   invalidateOmpProviderCaches,
+  invalidatePrimeProviderCaches,
   useSettingsQuery,
   useSaveSettingsMutation,
 } from "@/lib/query";
@@ -121,6 +122,7 @@ export function useSettings(): UseSettingsResult {
       hermes: sanitizeDir(data?.hermesConfigDir),
       pi: sanitizeDir(data?.piConfigDir),
       omp: sanitizeDir(data?.ompConfigDir),
+      prime: sanitizeDir(data?.primeConfigDir),
     });
     setRequiresRestart(false);
   }, [
@@ -204,6 +206,7 @@ export function useSettings(): UseSettingsResult {
         );
         const sanitizedPiDir = sanitizeDir(mergedSettings.piConfigDir);
         const sanitizedOmpDir = sanitizeDir(mergedSettings.ompConfigDir);
+        const sanitizedPrimeDir = sanitizeDir(mergedSettings.primeConfigDir);
         const {
           webdavSync: _ignoredWebdavSync,
           s3Sync: _ignoredS3Sync,
@@ -220,6 +223,7 @@ export function useSettings(): UseSettingsResult {
           openclawConfigDir: sanitizedOpenclawDir,
           piConfigDir: sanitizedPiDir,
           ompConfigDir: sanitizedOmpDir,
+          primeConfigDir: sanitizedPrimeDir,
           language: mergedSettings.language,
         };
 
@@ -341,6 +345,7 @@ export function useSettings(): UseSettingsResult {
         );
         const sanitizedPiDir = sanitizeDir(mergedSettings.piConfigDir);
         const sanitizedOmpDir = sanitizeDir(mergedSettings.ompConfigDir);
+        const sanitizedPrimeDir = sanitizeDir(mergedSettings.primeConfigDir);
         const previousAppDir = initialAppConfigDir;
         const previousClaudeDir = sanitizeDir(data?.claudeConfigDir);
         const previousCodexDir = sanitizeDir(data?.codexConfigDir);
@@ -350,6 +355,7 @@ export function useSettings(): UseSettingsResult {
         const previousOpenclawDir = sanitizeDir(data?.openclawConfigDir);
         const previousPiDir = sanitizeDir(data?.piConfigDir);
         const previousOmpDir = sanitizeDir(data?.ompConfigDir);
+        const previousPrimeDir = sanitizeDir(data?.primeConfigDir);
         const {
           webdavSync: _ignoredWebdavSync,
           s3Sync: _ignoredS3Sync,
@@ -366,6 +372,7 @@ export function useSettings(): UseSettingsResult {
           openclawConfigDir: sanitizedOpenclawDir,
           piConfigDir: sanitizedPiDir,
           ompConfigDir: sanitizedOmpDir,
+          primeConfigDir: sanitizedPrimeDir,
           language: mergedSettings.language,
         };
 
@@ -455,6 +462,7 @@ export function useSettings(): UseSettingsResult {
         const openclawDirChanged = sanitizedOpenclawDir !== previousOpenclawDir;
         const piDirChanged = sanitizedPiDir !== previousPiDir;
         const ompDirChanged = sanitizedOmpDir !== previousOmpDir;
+        const primeDirChanged = sanitizedPrimeDir !== previousPrimeDir;
         if (
           !pluginSynced &&
           (claudeDirChanged ||
@@ -477,6 +485,9 @@ export function useSettings(): UseSettingsResult {
         }
         if (ompDirChanged) {
           await invalidateOmpProviderCaches(queryClient);
+        }
+        if (primeDirChanged) {
+          await invalidatePrimeProviderCaches(queryClient);
         }
 
         const appDirChanged = sanitizedAppDir !== (previousAppDir ?? undefined);

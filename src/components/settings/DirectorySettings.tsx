@@ -23,6 +23,7 @@ interface DirectorySettingsProps {
   hermesDir?: string;
   piDir?: string;
   ompDir?: string;
+  primeDir?: string;
   onDirectoryChange: (app: DirectoryAppId, value?: string) => void;
   onBrowseDirectory: (app: DirectoryAppId) => Promise<void>;
   onResetDirectory: (app: DirectoryAppId) => Promise<void>;
@@ -43,6 +44,7 @@ export function DirectorySettings({
   hermesDir,
   piDir,
   ompDir,
+  primeDir,
   onDirectoryChange,
   onBrowseDirectory,
   onResetDirectory,
@@ -195,6 +197,16 @@ export function DirectorySettings({
           onChange={(val) => onDirectoryChange("omp", val)}
           onBrowse={() => onBrowseDirectory("omp")}
           onReset={() => onResetDirectory("omp")}
+        />
+        <DirectoryInput
+          label={t("settings.primeConfigDir")}
+          description={undefined}
+          value={primeDir}
+          resolvedValue={resolvedDirs.prime}
+          placeholder={t("settings.browsePlaceholderPrime")}
+          onChange={(val) => onDirectoryChange("prime", val)}
+          onBrowse={() => onBrowseDirectory("prime")}
+          onReset={() => onResetDirectory("prime")}
         />
       </section>
     </div>
