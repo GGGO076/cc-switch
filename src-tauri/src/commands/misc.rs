@@ -2612,6 +2612,59 @@ fn brew_cask_from_path(real: &str) -> Option<String> {
     None
 }
 
+/// Homebrew formula/cask tokens known for each tool. A `Cellar/<x>/` or
+/// `Caskroom/<x>/` segment alone proves nothing: mise shims are symlinks to the
+/// mise binary and `~/.local/share/mise/shims` is in the enumerate search paths,
+/// so an arbitrary `<x>` (e.g. the `mise` formula itself) would otherwise be
+/// accepted and the generated command would only fail at execution. Accepting
+/// only the tokens each tool's official channel actually installs makes the brew
+/// arm prove "this binary belongs to this formula/cask", not merely "a Cellar
+/// path exists". Anything else fails closed to manual removal.
+/// Verified channels (as of 2026-09): `gemini-cli` formula; `opencode` formula;
+/// `claude-code` and `codex` casks only (`brew info --formula` finds neither).
+/// `grok` is deliberately absent: homebrew-core's `grok` formula is an unrelated
+/// regex log parser, and xAI's CLI has no brew channel — a Cellar/grok/ path can
+/// never belong to Grok Build. OpenClaw routes through its dedicated owner
+/// resolution and never reaches this table.
+#[cfg(not(target_os = "windows"))]
+fn brew_tokens_for(tool: &str) -> Option<(&'static str, Option<&'static str>)> {
+    // (formula, cask)
+    match tool {
+        "gemini" => Some(("gemini-cli", None)),
+        "opencode" => Some(("opencode", None)),
+        "claude" => Some((None, Some("claude-code"))),
+        "codex" => Some((None, Some("codex"))),
+        _ => None,
+    }
+}
+
+/// Verify the extracted brew token against the tool's known formula/cask tokens.
+/// A tool with no known formula (claude/codex) must never match a Cellar path —
+/// those installs can only be casks, and a Cellar segment here means the path
+/// belongs to something else entirely (e.g. a mise shim resolving into the mise
+/// formula's Cellar), which fails closed.
+#[cfg(not(target_os = "windows"))]
+fn brew_formula_for_tool(tool: &str, real_target: &str) -> Option<String> {
+    let (formula, _) = brew_tokens_for(tool)?;
+    let token = brew_formula_from_path(real_target)?;
+    if Some(token.as_str()) == formula {
+        Some(token)
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn brew_cask_for_tool(tool: &str, real_target: &str) -> Option<String> {
+    let (_, cask) = brew_tokens_for(tool)?;
+    let token = brew_cask_from_path(real_target)?;
+    if Some(token.as_str()) == cask {
+        Some(token)
+    } else {
+        None
+    }
+}
+
 /// Anthropic's native installer has no CLI uninstall subcommand. Detect its known
 /// layouts so the uninstall planner routes them to manual-removal guidance instead of
 /// accidentally invoking a sibling package manager that may own a different copy.
@@ -2952,7 +3005,8 @@ fn prefers_official_update(tool: &str, shell: LifecycleCommandShell) -> bool {
 #[cfg(not(target_os = "windows"))]
 fn codex_repair_command(bin_path: &str, real: &str) -> Option<String> {
     // Homebrew formula/cask -> not owned by npm; hand back to the brew upgrade path.
-    if brew_formula_from_path(real).is_some() || brew_cask_from_path(real).is_some() {
+    if brew_formula_for_tool("codex", real).is_some() || brew_cask_for_tool("codex", real).is_some()
+    {
         return None;
     }
     // 只认会落到 sibling npm 的 node 管理器来源；volta/bun/system/未知交回 anchored。
@@ -2982,14 +3036,14 @@ fn package_manager_anchored_command_from_paths(
     bin_path: &str,
     real_target: &str,
 ) -> Option<String> {
-    if let Some(cask) = brew_cask_from_path(real_target) {
+    if let Some(cask) = brew_cask_for_tool(tool, real_target) {
         let brew = sibling_bin(bin_path, "brew")?;
         return Some(format!(
             "{} upgrade --cask {cask}",
             quote_path_if_spaced(&brew)
         ));
     }
-    if let Some(formula) = brew_formula_from_path(real_target) {
+    if let Some(formula) = brew_formula_for_tool(tool, real_target) {
         let brew = sibling_bin(bin_path, "brew")?;
         return Some(format!("{} upgrade {formula}", quote_path_if_spaced(&brew)));
     }
@@ -3006,8 +3060,16 @@ fn package_manager_anchored_command_from_paths(
                 quote_path_if_spaced(&bun)
             ));
         }
-        // 自带同级 npm 的 node 管理器：落到下面锚定到那处的 npm。
-        "nvm" | "fnm" | "mise" | "homebrew" => {}
+        // Node managers that ship a sibling npm: fall through to that npm. The
+        // same ownership proof as the uninstall arm applies here — a mise
+        // shim's real target has no `lib/node_modules/<pkg>` segment, and the
+        // sibling npm shim there belongs to a different prefix, so `i -g`
+        // would install somewhere else (the mise-managed default would never
+        // be written back). None -> upstream falls back to the static command,
+        // same as the pre-existing anchoring failure.
+        "nvm" | "fnm" | "mise" | "homebrew" => {
+            npm_owner_prefix_from_real_target(real_target, pkg)?;
+        }
         // system / 未知来源通常没有同级 npm，不能拼 `<dir>/npm`。若工具有官方
         // self-update，上层会直接锚到 CLI 自身；否则返回 None 走静态兜底。
         _ => return None,
@@ -3057,7 +3119,10 @@ fn anchored_command_from_paths(tool: &str, bin_path: &str, real_target: &str) ->
         ));
     }
     let package_command = package_manager_anchored_command_from_paths(tool, bin_path, real_target);
-    if brew_formula_from_path(real_target).is_some() || brew_cask_from_path(real_target).is_some() {
+    if brew_tokens_for(tool).is_some()
+        && (brew_formula_for_tool(tool, real_target).is_some()
+            || brew_cask_for_tool(tool, real_target).is_some())
+    {
         return package_command;
     }
     if prefers_official_update(tool, LifecycleCommandShell::Posix) {
@@ -3866,6 +3931,23 @@ fn openclaw_package_remove_command(real_target: &str) -> Option<String> {
 #[cfg(not(target_os = "windows"))]
 fn npm_global_remove_command_from_real_target(tool: &str, real_target: &str) -> Option<String> {
     let pkg = npm_package_for(tool)?;
+    let prefix = npm_owner_prefix_from_real_target(real_target, pkg)?;
+    let owner_entry = Path::new(prefix).join("bin").join(tool);
+    anchored_npm_command(
+        &owner_entry.to_string_lossy(),
+        &format!("uninstall -g {pkg} --prefix {}", shell_single_quote(prefix)),
+    )
+}
+
+/// Ownership proof for an npm-managed install: does the canonical target contain
+/// the package's own `lib/node_modules/<pkg>/` segment? Returns the owning prefix
+/// (everything before the marker). Shared by the POSIX anchored-npm arms: a
+/// sibling npm proves "a manager is nearby", this proves "this binary belongs to
+/// it". mise shims are symlinks to the mise binary and nvm/fnm/Homebrew npm
+/// globals all carry the segment, so shims fail this check and route to manual
+/// removal instead of a command that would target a different install.
+#[cfg(not(target_os = "windows"))]
+fn npm_owner_prefix_from_real_target(real_target: &str, pkg: &str) -> Option<&str> {
     let marker = format!("/lib/node_modules/{pkg}");
     let real_lower = real_target.to_ascii_lowercase();
     let marker_lower = marker.to_ascii_lowercase();
@@ -3880,34 +3962,31 @@ fn npm_global_remove_command_from_real_target(tool: &str, real_target: &str) -> 
     if prefix.is_empty() || !prefix.starts_with('/') {
         return None;
     }
-    let owner_entry = Path::new(prefix).join("bin").join(tool);
-    anchored_npm_command(
-        &owner_entry.to_string_lossy(),
-        &format!("uninstall -g {pkg} --prefix {}", shell_single_quote(prefix)),
-    )
+    Some(prefix)
 }
 
 /// POSIX package-manager uninstall command: symmetric with
 /// `package_manager_anchored_command_from_paths` but with uninstall args. Homebrew
-/// cask -> `brew uninstall --cask <token>`; formula -> `brew uninstall <formula>`;
-/// Volta -> `volta uninstall`; Bun ->
-/// `bun remove -g`; nvm/fnm/mise/homebrew npm global packages -> anchored sibling
-/// `npm uninstall -g`. system / pnpm / unknown sources have no sibling npm -> None
-/// (handed back to `uninstall_plan` for static fallback or "not supported").
+/// cask -> `brew uninstall --cask <token>`; formula -> `brew uninstall <formula>`
+/// (both verified against the tool's known brew tokens); Volta -> `volta uninstall`;
+/// Bun -> `bun remove -g`; pnpm -> `pnpm remove -g`; nvm/fnm/mise/homebrew npm
+/// global packages -> anchored sibling `npm uninstall -g` (only when the canonical
+/// target proves npm ownership). system / unknown sources have no sibling npm ->
+/// None (handed back to `uninstall_plan` for static fallback or "not supported").
 #[cfg(not(target_os = "windows"))]
 fn package_manager_anchored_uninstall_command_from_paths(
     tool: &str,
     bin_path: &str,
     real_target: &str,
 ) -> Option<String> {
-    if let Some(cask) = brew_cask_from_path(real_target) {
+    if let Some(cask) = brew_cask_for_tool(tool, real_target) {
         let brew = sibling_bin(bin_path, "brew")?;
         return Some(format!(
             "{} uninstall --cask {cask}",
             quote_path_if_spaced(&brew)
         ));
     }
-    if let Some(formula) = brew_formula_from_path(real_target) {
+    if let Some(formula) = brew_formula_for_tool(tool, real_target) {
         let brew = sibling_bin(bin_path, "brew")?;
         return Some(format!(
             "{} uninstall {formula}",
@@ -3928,8 +4007,15 @@ fn package_manager_anchored_uninstall_command_from_paths(
             let pnpm = sibling_bin(bin_path, "pnpm")?;
             Some(format!("{} remove -g {pkg}", quote_path_if_spaced(&pnpm)))
         }
-        // Node managers that ship a sibling npm: anchor to that npm's uninstall.
+        // Node managers that ship a sibling npm: anchor to that npm's uninstall,
+        // but only when the canonical target proves npm ownership (a
+        // `lib/node_modules/<pkg>/` segment under that prefix). A mise shim
+        // resolves to the mise binary instead — no such segment — and the
+        // sibling `npm` shim there would operate on a different prefix (removing
+        // a *different* npm copy or no-oping while the mise-managed default
+        // stays). Fail closed in that case.
         "nvm" | "fnm" | "mise" | "homebrew" => {
+            npm_owner_prefix_from_real_target(real_target, pkg)?;
             anchored_npm_command(bin_path, &format!("uninstall -g {pkg}"))
         }
         // A system/custom-prefix launcher is safe only when its canonical target proves
@@ -3942,7 +4028,16 @@ fn package_manager_anchored_uninstall_command_from_paths(
 /// Windows package-manager uninstall command: symmetric with the Windows
 /// `package_manager_anchored_command_from_paths`. Volta -> `volta uninstall`; pnpm ->
 /// `pnpm remove -g`; the rest (scoop/choco/winget/nvm-windows/MS Store node/system) ->
-/// sibling `npm uninstall -g`.
+/// `npm uninstall -g` pinned to the owning prefix.
+///
+/// The npm arm requires ownership proof: `parent_dir(bin)\node_modules\<pkg>` must
+/// exist on disk. Windows `.cmd` shims are copies, not symlinks, so a canonical
+/// target segment check does not transfer from POSIX; the directory layout is the
+/// proof here. It unlocks the most common layout (Node MSI keeps global shims in
+/// `%AppData%\npm` while `npm.cmd` sits in the Node install dir — no sibling), and
+/// closes the mise/other-shim case where the sibling `npm.cmd` would operate on a
+/// different prefix (removing a different npm copy while the shim-managed default
+/// stays, or no-oping entirely).
 #[cfg(target_os = "windows")]
 fn package_manager_anchored_uninstall_command_from_paths(
     tool: &str,
@@ -3964,14 +4059,27 @@ fn package_manager_anchored_uninstall_command_from_paths(
                 win_quote_path_for_batch(&pnpm)
             ))
         }
-        // Fallback = npm family: the uninstall idiom for a global package is still
-        // sibling `npm.cmd`/`.exe` uninstall -g.
+        // Fallback = npm family. Ownership first: the launcher directory must
+        // contain the package's own `node_modules\<pkg>` directory. Then prefer
+        // the sibling npm, but fall back to a bare `npm` from PATH when absent —
+        // with the prefix repeated explicitly, the command stays anchored even
+        // though the npm binary itself resolves through PATH. The prefix goes
+        // through the same batch quoter as the anchored paths (`%` needs the
+        // four-percent escape under the two-round batch/call expansion).
         _ => {
-            let npm = sibling_bin_with_ext(bin_path, "npm", &["cmd", "exe"])?;
-            Some(format!(
-                "{} uninstall -g {pkg}",
-                win_quote_path_for_batch(&npm)
-            ))
+            let dir = parent_dir(bin_path);
+            if dir.is_empty() || !Path::new(&dir).join("node_modules").join(pkg).is_dir() {
+                return None;
+            }
+            let prefix_arg = win_quote_path_for_batch(&dir);
+            let npm = match sibling_bin_with_ext(bin_path, "npm", &["cmd", "exe"]) {
+                Some(npm) => format!(
+                    "{} uninstall -g {pkg} --prefix {prefix_arg}",
+                    win_quote_path_for_batch(&npm)
+                ),
+                None => format!("npm uninstall -g {pkg} --prefix {prefix_arg}"),
+            };
+            Some(npm)
         }
     }
 }
@@ -6039,26 +6147,79 @@ mod tests {
 
         #[test]
         fn npm_windows_default_uninstall_branch() {
-            // A package-managed system path uses only its sibling npm. Codex has no
-            // official `uninstall` subcommand.
+            // A package-managed system path uses only its sibling npm (which the
+            // launcher dir's `node_modules\<pkg>` proves is the owner). Codex has
+            // no official `uninstall` subcommand.
             let (_dir, sub, bin_path) = setup_sibling("v22.0.0", "codex.cmd", &["npm.cmd"]);
+            std::fs::create_dir_all(
+                Path::new(&sub)
+                    .join("node_modules")
+                    .join("@openai")
+                    .join("codex"),
+            )
+            .expect("owned package dir should be created");
             let cmd = anchored_uninstall_command_from_paths("codex", &bin_path, &bin_path);
             let npm_full = format!("{}\\npm.cmd", sub.to_string_lossy());
             let expected = format!(
-                "{} uninstall -g @openai/codex",
-                expect_quoted_path(&npm_full)
+                "{} uninstall -g @openai/codex --prefix {}",
+                expect_quoted_path(&npm_full),
+                expect_quoted_path(&sub.to_string_lossy())
             );
             assert_eq!(cmd.as_deref(), Some(expected.as_str()));
         }
 
         #[test]
+        fn npm_windows_msi_layout_falls_back_to_path_npm_with_pinned_prefix() {
+            // Node MSI keeps global shims in `%AppData%\npm` while `npm.cmd`
+            // sits in the Node install dir — the launcher dir has no sibling
+            // npm.cmd until the user runs `npm i -g npm`. The `node_modules`
+            // proof still unlocks this layout: anchor via bare `npm` from PATH
+            // with the owning prefix repeated explicitly.
+            let (_dir, sub, bin_path) = setup_sibling("npm", "codex.cmd", &[]);
+            std::fs::create_dir_all(
+                Path::new(&sub)
+                    .join("node_modules")
+                    .join("@openai")
+                    .join("codex"),
+            )
+            .expect("owned package dir should be created");
+            let cmd = anchored_uninstall_command_from_paths("codex", &bin_path, &bin_path);
+            let expected = format!(
+                "npm uninstall -g @openai/codex --prefix {}",
+                expect_quoted_path(&sub.to_string_lossy())
+            );
+            assert_eq!(cmd.as_deref(), Some(expected.as_str()));
+        }
+
+        #[test]
+        fn npm_windows_without_owned_package_dir_requires_manual_removal() {
+            // A shim dir with a sibling npm.cmd but no `node_modules\<pkg>`
+            // proves only "a manager is nearby", not ownership — e.g. a
+            // third-party shim dir would end up deleting another npm copy. The
+            // old sibling-only check is exactly the fail-open hole; fail closed.
+            let (_dir, _sub, bin_path) = setup_sibling("v22.0.0", "codex.cmd", &["npm.cmd"]);
+            assert_eq!(
+                anchored_uninstall_command_from_paths("codex", &bin_path, &bin_path),
+                None
+            );
+        }
+
+        #[test]
         fn claude_windows_npm_uses_npm_uninstall_only() {
             let (_dir, sub, bin_path) = setup_sibling("v22.0.0", "claude.cmd", &["npm.cmd"]);
+            std::fs::create_dir_all(
+                Path::new(&sub)
+                    .join("node_modules")
+                    .join("@anthropic-ai")
+                    .join("claude-code"),
+            )
+            .expect("owned package dir should be created");
             let cmd = anchored_uninstall_command_from_paths("claude", &bin_path, &bin_path);
             let npm_full = format!("{}\\npm.cmd", sub.to_string_lossy());
             let expected = format!(
-                "{} uninstall -g @anthropic-ai/claude-code",
-                expect_quoted_path(&npm_full)
+                "{} uninstall -g @anthropic-ai/claude-code --prefix {}",
+                expect_quoted_path(&npm_full),
+                expect_quoted_path(&sub.to_string_lossy())
             );
             assert_eq!(cmd.as_deref(), Some(expected.as_str()));
         }
@@ -6085,13 +6246,22 @@ mod tests {
 
         #[test]
         fn grok_windows_npm_anchors_to_sibling_npm_uninstall() {
-            // A non-native grok path (nvm-windows-style v22.0.0 dir) anchors to sibling npm.
+            // A non-native grok path (nvm-windows-style v22.0.0 dir) anchors to
+            // sibling npm; the `node_modules\<pkg>` dir proves ownership.
             let (_dir, sub, bin_path) = setup_sibling("v22.0.0", "grok.cmd", &["npm.cmd"]);
+            std::fs::create_dir_all(
+                Path::new(&sub)
+                    .join("node_modules")
+                    .join("@xai-official")
+                    .join("grok"),
+            )
+            .expect("owned package dir should be created");
             let cmd = anchored_uninstall_command_from_paths("grok", &bin_path, &bin_path);
             let npm_full = format!("{}\\npm.cmd", sub.to_string_lossy());
             let expected = format!(
-                "{} uninstall -g @xai-official/grok",
-                expect_quoted_path(&npm_full)
+                "{} uninstall -g @xai-official/grok --prefix {}",
+                expect_quoted_path(&npm_full),
+                expect_quoted_path(&sub.to_string_lossy())
             );
             assert_eq!(cmd.as_deref(), Some(expected.as_str()));
         }
@@ -6307,7 +6477,9 @@ mod tests {
 
         #[test]
         fn wsl_package_tools_require_manual_owner_resolution() {
-            for tool in ["claude", "codex", "gemini", "grok", "opencode", "openclaw"] {
+            for tool in [
+                "claude", "codex", "gemini", "grok", "opencode", "openclaw", "pi",
+            ] {
                 assert!(
                     wsl_tool_action_shell_command(tool, ToolLifecycleAction::Uninstall).is_none(),
                     "{tool} must not fall back to a bare package-manager uninstall in WSL"
@@ -6453,8 +6625,13 @@ mod tests {
 
         #[test]
         fn windows_scoop_still_identified() {
-            // Scoop 已有 `/scoop/` 分支;我们的 6 个工具都不是 scoop formula,所以这条
-            // 实际不影响锚定决策(锚定层会用 sibling npm.cmd),但归类保留方便未来。
+            // Scoop has a `/scoop/` branch. OpenCode's README now lists
+            // `scoop install opencode` and `choco install opencode` as official
+            // channels, so a Scoop-shimmed OpenCode is a real layout (its
+            // `nodejs` manifest uses env_add_path rather than shims, so such
+            // installs currently fail closed in the npm arm only because the
+            // launcher dir has no `node_modules\<pkg>`). Keep the
+            // classification for future Scoop-persist anchoring.
             assert_eq!(
                 infer_install_source(Path::new("C:\\Users\\me\\scoop\\shims\\codex.cmd")),
                 "scoop"
@@ -7185,6 +7362,27 @@ mod tests {
         }
 
         #[test]
+        fn mise_standalone_without_npm_ownership_requires_manual_removal() {
+            // When node itself is managed by mise, `~/.local/share/mise/shims`
+            // contains both a `gemini` and an `npm` shim, so the old sibling-npm
+            // check passed and `npm uninstall -g` ran against mise's node prefix.
+            // If an npm-installed duplicate existed it would be removed while the
+            // mise-managed default stays; otherwise it's a no-op followed by
+            // "still detected". A standalone mise install (mise use -g on the
+            // standalone binary) has no `lib/node_modules/<pkg>` segment in its
+            // canonical target, so ownership cannot be proven and the plan fails
+            // closed.
+            assert_eq!(
+                anchored_uninstall_command_from_paths(
+                    "gemini",
+                    "/Users/me/.local/share/mise/shims/gemini",
+                    "/Users/me/.local/share/mise/installs/gemini/1.0.0/bin/gemini",
+                ),
+                None
+            );
+        }
+
+        #[test]
         fn claude_nvm_uses_npm_uninstall_only() {
             // Claude also has no uninstall subcommand; invoking `claude uninstall` can
             // start a real agent prompt, so only the proven npm owner may run.
@@ -7268,15 +7466,51 @@ mod tests {
         }
 
         #[test]
-        fn codex_homebrew_formula_uses_brew_uninstall() {
-            let cmd = anchored_uninstall_command_from_paths(
-                "codex",
-                "/opt/homebrew/bin/codex",
-                "/opt/homebrew/Cellar/codex/1.2.3/bin/codex",
-            );
+        fn codex_homebrew_formula_path_fails_closed() {
+            // Codex ships no Homebrew formula (cask only). A `Cellar/codex/` path
+            // therefore belongs to something else entirely (e.g. a mise shim
+            // resolving into an unrelated formula) and must not be uninstalled
+            // via brew.
             assert_eq!(
-                cmd.as_deref(),
-                Some("/opt/homebrew/bin/brew uninstall codex")
+                anchored_uninstall_command_from_paths(
+                    "codex",
+                    "/opt/homebrew/bin/codex",
+                    "/opt/homebrew/Cellar/codex/1.2.3/bin/codex",
+                ),
+                None
+            );
+        }
+
+        #[test]
+        fn mise_shim_cellar_real_target_is_not_uninstalled_via_brew() {
+            // `brew install mise` + `mise use -g gemini` puts a shim at
+            // `~/.local/share/mise/shims/gemini`; canonicalize resolves it into
+            // the mise formula's Cellar. The old any-Cellar check accepted this
+            // and produced `.../shims/brew uninstall mise` (shown verbatim in the
+            // confirm dialog, failing only at execution). With per-tool token
+            // verification the Cellar token must be the tool's own formula, so
+            // this fails closed.
+            assert_eq!(
+                anchored_uninstall_command_from_paths(
+                    "gemini",
+                    "/Users/me/.local/share/mise/shims/gemini",
+                    "/Users/me/.local/share/mise/Cellar/mise/2026.1.0/bin/mise",
+                ),
+                None
+            );
+        }
+
+        #[test]
+        fn claude_homebrew_formula_path_fails_closed() {
+            // `brew info --formula claude-code` -> no formula; claude-code is
+            // cask-only. A Cellar path can never be claude's.
+            assert_eq!(
+                anchored_uninstall_command_from_paths(
+                    "claude",
+                    "/opt/homebrew/bin/claude",
+                    "/opt/homebrew/Cellar/claude-code/2.1.226/bin/claude",
+                ),
+                None
             );
         }
 
