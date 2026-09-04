@@ -1320,7 +1320,9 @@ export function AboutSection({ isPortable }: AboutSectionProps) {
                           size="sm"
                           variant={action === "install" ? "outline" : "default"}
                           className="h-7 gap-1.5 text-xs"
-                          onClick={() => handleRunToolAction([toolName], action)}
+                          onClick={() =>
+                            handleRunToolAction([toolName], action)
+                          }
                           disabled={isToolVersionLoading || isAnyBusy}
                         >
                           {/* preflight（升级前冲突探测）阶段也转圈：此时 toolActions
