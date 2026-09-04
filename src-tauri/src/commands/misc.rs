@@ -4869,7 +4869,10 @@ mod tests {
         let ShellProbe::Found(sid_text) = sid_probe else {
             panic!("session probe should succeed, got {sid_probe:?}");
         };
-        let probe_sid: u32 = sid_text.trim().parse().expect("probe sid should be numeric");
+        let probe_sid: u32 = sid_text
+            .trim()
+            .parse()
+            .expect("probe sid should be numeric");
         assert_ne!(
             probe_sid, runner_sid,
             "probe shell must run in its own session (setsid missing?)"
