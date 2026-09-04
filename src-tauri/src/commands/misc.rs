@@ -2627,11 +2627,11 @@ fn brew_cask_from_path(real: &str) -> Option<String> {
 /// never belong to Grok Build. OpenClaw routes through its dedicated owner
 /// resolution and never reaches this table.
 #[cfg(not(target_os = "windows"))]
-fn brew_tokens_for(tool: &str) -> Option<(&'static str, Option<&'static str>)> {
+fn brew_tokens_for(tool: &str) -> Option<(Option<&'static str>, Option<&'static str>)> {
     // (formula, cask)
     match tool {
-        "gemini" => Some(("gemini-cli", None)),
-        "opencode" => Some(("opencode", None)),
+        "gemini" => Some((Some("gemini-cli"), None)),
+        "opencode" => Some((Some("opencode"), None)),
         "claude" => Some((None, Some("claude-code"))),
         "codex" => Some((None, Some("codex"))),
         _ => None,
@@ -2647,7 +2647,7 @@ fn brew_tokens_for(tool: &str) -> Option<(&'static str, Option<&'static str>)> {
 fn brew_formula_for_tool(tool: &str, real_target: &str) -> Option<String> {
     let (formula, _) = brew_tokens_for(tool)?;
     let token = brew_formula_from_path(real_target)?;
-    if Some(token.as_str()) == formula {
+    if formula == Some(token.as_str()) {
         Some(token)
     } else {
         None
@@ -3947,7 +3947,7 @@ fn npm_global_remove_command_from_real_target(tool: &str, real_target: &str) -> 
 /// globals all carry the segment, so shims fail this check and route to manual
 /// removal instead of a command that would target a different install.
 #[cfg(not(target_os = "windows"))]
-fn npm_owner_prefix_from_real_target(real_target: &str, pkg: &str) -> Option<&str> {
+fn npm_owner_prefix_from_real_target<'a>(real_target: &'a str, pkg: &str) -> Option<&'a str> {
     let marker = format!("/lib/node_modules/{pkg}");
     let real_lower = real_target.to_ascii_lowercase();
     let marker_lower = marker.to_ascii_lowercase();
