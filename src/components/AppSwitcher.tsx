@@ -37,8 +37,8 @@ const APP_ICON_NAME: Record<AppId, string> = {
   openclaw: "openclaw",
   hermes: "hermes",
   pi: "pi",
-  omp: "pi",
-  prime: "pi",
+  omp: "omp",
+  prime: "prime",
 };
 
 const APP_DISPLAY_NAME: Record<AppId, string> = {

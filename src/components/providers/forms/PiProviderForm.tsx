@@ -383,12 +383,13 @@ function buildPiSettingsConfig({
 }
 
 export function PiProviderForm({
+  appId,
   providerId,
   submitLabel,
   onSubmit,
   onCancel,
-  onSubmittingChange,
   onSubmitReadyChange,
+  onSubmittingChange,
   initialData,
   showButtons = true,
 }: ProviderFormProps) {
@@ -1243,7 +1244,7 @@ export function PiProviderForm({
         websiteUrl: identity.websiteUrl?.trim() ?? "",
         notes: identity.notes?.trim() ?? "",
         settingsConfig: JSON.stringify(settingsConfig),
-        icon: identity.icon || selectedPreset?.icon || "pi",
+        icon: identity.icon || selectedPreset?.icon || (appId === "omp" ? "omp" : appId === "prime" ? "prime" : "pi"),
         iconColor: identity.iconColor || selectedPreset?.iconColor || "",
         providerKey: isEdit ? providerId : trimmedKey,
         presetId: selectedPresetId ?? undefined,
